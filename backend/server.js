@@ -113,18 +113,42 @@ const TOOLS = [
   {
     type: "function",
     function: {
-      name: "add_item_to_order",
+      name: "search_menu_items",
       description:
-        "Add one valid menu item to the customer's order. If the item has more " +
-        "than one size and none is given, this returns a clarifying question " +
-        "instead of adding it — ask the customer and call again with their answer.",
+        "Search the menu by name/keyword. ALWAYS call this first when the customer's wording doesn't " +
+        "exactly match a known itemId, or when more than one item could match — then show the results " +
+        "as a choice for the customer to pick from. Never guess an itemId for add_item_to_order.",
       parameters: {
         type: "object",
         properties: {
-          itemId: { type: "string", description: "The menu item's id, e.g. 'cof-latte'." },
+          query: { type: "string", description: "What the customer said they want, e.g. 'dosa' or 'egg curry'." },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_item_to_order",
+      description:
+        "Add one valid menu item to the customer's order, only after you're certain of the exact itemId " +
+        "(use search_menu_items first if not certain). If the item has more than one size and none is " +
+        "given, or has a required add-on group that isn't satisfied, this returns a clarifying question " +
+        "instead of adding it — show the customer the returned choices and call again with their answer.",
+      parameters: {
+        type: "object",
+        properties: {
+          itemId: { type: "string", description: "The menu item's exact id, e.g. 'dosa-plain'." },
           size: { type: "string", description: "Size name, required only if the item offers more than one size." },
           quantity: { type: "integer", description: "How many to add. Defaults to 1." },
-          options: { type: "array", items: { type: "string" }, description: "Customization names from the item's own options list." },
+          options: { type: "array", items: { type: "string" }, description: "Free-form customization names from the item's own options list." },
+          addOns: {
+            type: "array",
+            items: { type: "string" },
+            description: "Selected add-on option names from the item's addOnGroups, if it has any. Required groups must be satisfied or this asks a clarifying question instead of adding.",
+          },
+          notes: { type: "string", description: "Optional item-level special instruction from the customer, e.g. 'less spicy'." },
         },
         required: ["itemId"],
       },
@@ -134,7 +158,7 @@ const TOOLS = [
     type: "function",
     function: {
       name: "update_order_item",
-      description: "Change the quantity, size, and/or options of an item already in the order.",
+      description: "Change the quantity, size, options, add-ons, and/or notes of an item already in the order.",
       parameters: {
         type: "object",
         properties: {
@@ -142,6 +166,8 @@ const TOOLS = [
           quantity: { type: "integer" },
           size: { type: "string" },
           options: { type: "array", items: { type: "string" } },
+          addOns: { type: "array", items: { type: "string" } },
+          notes: { type: "string" },
         },
         required: ["lineId"],
       },
@@ -174,6 +200,16 @@ const TOOLS = [
         },
         required: ["promotionId"],
       },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "present_fulfillment_options",
+      description:
+        "Call this to ask the customer whether they want pickup, delivery, or dine-in — returns " +
+        "tappable choices instead of you having to ask them to type it.",
+      parameters: { type: "object", properties: {} },
     },
   },
   {
@@ -222,6 +258,37 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "set_dine_in_details",
+      description: "Select dine-in and set the customer's name and phone number (both required). Call with only the fields the customer just gave you.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          phone: { type: "string" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_order_notes",
+      description:
+        "Sets an order-level special instruction the customer wants to add for the whole order " +
+        "(not tied to one item), e.g. 'please pack separately'. Ask about this before confirm_order " +
+        "if it hasn't been set yet — don't assume there's nothing to add.",
+      parameters: {
+        type: "object",
+        properties: {
+          notes: { type: "string" },
+        },
+        required: ["notes"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "get_order_review",
       description: "Returns the complete order summary — items, fulfillment, promotions, price breakdown, and whether it's ready for checkout.",
       parameters: { type: "object", properties: {} },
@@ -231,7 +298,58 @@ const TOOLS = [
     type: "function",
     function: {
       name: "get_recommendations",
-      description: "Returns 1-2 available menu items to optionally suggest to the customer.",
+      description: "Returns up to 5 available menu items to suggest to the customer.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_bestsellers",
+      description: "Returns the cafe's curated bestseller items. Always use this for \"bestsellers\" / \"popular\" / \"most ordered\" questions instead of guessing from the full menu.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_chefs_recommendations",
+      description: "Returns the cafe's curated chef's-recommendation items. Always use this for \"chef's recommendation\" / \"what's special\" questions instead of guessing from the full menu.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_spicy_items",
+      description: "Returns available items tagged as genuinely spicy/chili-forward. Always use this for \"spicy dishes\" questions instead of text-searching for the word \"spicy\" — most spicy items don't have that word in their name.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_vegetarian_items",
+      description: "Returns up to 10 available vegetarian items. Always use this for \"vegetarian options\" questions instead of guessing from the full menu, so the items you describe exactly match the quick-reply cards shown.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_non_vegetarian_items",
+      description: "Returns up to 10 available non-vegetarian items. Always use this for \"non-vegetarian options\" questions instead of guessing from the full menu, so the items you describe exactly match the quick-reply cards shown.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "present_quantity_options",
+      description:
+        "Call this to ask the customer how many of an item they'd like, when you're about to add more " +
+        "than 1 and they haven't stated a number themselves — returns tappable quantity choices instead " +
+        "of you deciding a quantity for them.",
       parameters: { type: "object", properties: {} },
     },
   },
@@ -240,6 +358,16 @@ const TOOLS = [
     function: {
       name: "get_eligible_promotions",
       description: "Returns active promotions the current order is currently eligible for.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "present_confirmation_options",
+      description:
+        "Call this alongside get_order_review, once the order is ready for checkout, to ask the " +
+        "customer to confirm — returns tappable Yes/No choices instead of you having to ask them to type it.",
       parameters: { type: "object", properties: {} },
     },
   },
@@ -269,6 +397,16 @@ const TOOLS = [
 // self-correct on the next turn.
 function executeTool(name, args, order, activeSessionId) {
   switch (name) {
+    case "search_menu_items": {
+      const matches = searchMenuItems(args.query);
+      if (matches.length === 0) {
+        return { matches: [], reply: `I couldn't find anything matching "${args.query}" on the menu.` };
+      }
+      return {
+        matches: matches.map((m) => ({ id: m.id, name: m.name, category: m.category, price: m.sizes[0].price })),
+        quickReplies: buildItemQuickReplies(matches),
+      };
+    }
     case "add_item_to_order":
       return addItemToOrder(order, args);
     case "update_order_item":
@@ -277,18 +415,50 @@ function executeTool(name, args, order, activeSessionId) {
       return removeOrderItemFromOrder(order, args.lineId, args);
     case "apply_promotion":
       return applyPromotionToOrder(order, args.promotionId);
+    case "present_fulfillment_options":
+      return { reply: "Would you like pickup, delivery, or dine-in?", quickReplies: ["Pickup", "Delivery", "Dine-in"] };
     case "set_pickup_details":
       return setPickupDetails(order, args);
     case "set_delivery_details":
       return setDeliveryDetails(order, args);
     case "confirm_delivery_address":
       return confirmDeliveryAddress(order);
+    case "set_dine_in_details":
+      return setDineInDetails(order, args);
+    case "set_order_notes":
+      return setOrderNotes(order, args.notes);
     case "get_order_review":
       return { review: buildOrderReview(order) };
-    case "get_recommendations":
-      return { recommendations: getRecommendations(order) };
+    case "get_recommendations": {
+      const picks = getRecommendations(order);
+      return { recommendations: picks, quickReplies: buildItemQuickReplies(picks) };
+    }
+    case "get_bestsellers": {
+      const picks = MENU.items.filter((item) => item.bestseller && item.available);
+      return { bestsellers: picks, quickReplies: buildItemQuickReplies(picks) };
+    }
+    case "get_chefs_recommendations": {
+      const picks = MENU.items.filter((item) => item.chefRecommended && item.available);
+      return { chefsRecommendations: picks, quickReplies: buildItemQuickReplies(picks) };
+    }
+    case "get_spicy_items": {
+      const picks = MENU.items.filter((item) => item.spicy && item.available);
+      return { spicyItems: picks, quickReplies: buildItemQuickReplies(picks) };
+    }
+    case "get_vegetarian_items": {
+      const picks = MENU.items.filter((item) => item.dietary.includes("vegetarian") && item.available).slice(0, 10);
+      return { vegetarianItems: picks, quickReplies: buildItemQuickReplies(picks) };
+    }
+    case "get_non_vegetarian_items": {
+      const picks = MENU.items.filter((item) => item.dietary.includes("non-vegetarian") && item.available).slice(0, 10);
+      return { nonVegetarianItems: picks, quickReplies: buildItemQuickReplies(picks) };
+    }
+    case "present_quantity_options":
+      return { reply: "How many would you like?", quickReplies: ["1", "2", "3", "4"] };
     case "get_eligible_promotions":
       return { eligiblePromotions: getEligiblePromotions(order) };
+    case "present_confirmation_options":
+      return { reply: "Shall I place the order?", quickReplies: ["Yes, confirm", "No, let me change something"] };
     case "confirm_order":
       return confirmOrder(order, args.customerReplyText, activeSessionId);
     default:
@@ -321,12 +491,23 @@ const MAX_TOOL_CALL_STEPS = 6;
 // repeats until it responds with plain text or a safety cap is hit.
 async function runAiTurn(history, message, order, activeSessionId) {
   if (!AI_API_KEY) {
-    return "AI isn't configured yet on this server — set AI_API_KEY (and AI_API_BASE_URL/AI_MODEL) in .env.";
+    return { reply: "AI isn't configured yet on this server — set AI_API_KEY (and AI_API_BASE_URL/AI_MODEL) in .env." };
   }
 
   const conversation = buildMessages(history, message);
+  let quickReplies = null;
+  let orderJustConfirmed = false;
 
   for (let step = 0; step < MAX_TOOL_CALL_STEPS; step++) {
+    // Small models tend to narrate a running quantity ("now you have 2")
+    // from conversational momentum rather than actually counting the JSON
+    // array below — so hand them the exact count pre-computed, in the
+    // cheapest possible form to get right.
+    const cartQuantityLine =
+      order.items.length === 0
+        ? "The cart is currently EMPTY — 0 items."
+        : order.items.map((i) => `${i.quantity} x ${i.name} (${i.size})`).join("; ");
+
     // Merged into ONE system message, not two — some OpenAI-compatible
     // providers (confirmed: Gemini) silently drop system content when more
     // than one system-role message is present, instead of concatenating them.
@@ -334,23 +515,26 @@ async function runAiTurn(history, message, order, activeSessionId) {
       role: "system",
       content:
         `${conversation[0].content}\n\n` +
-        `## Current Order State (live — reflects everything set so far)\n${JSON.stringify(order, null, 2)}`,
+        `## Current Order State (live — reflects everything set so far)\n` +
+        `EXACT cart quantities right now — this is the only correct answer to "how many does the customer have", ` +
+        `it is NOT necessarily what you said a moment ago: ${cartQuantityLine}\n\n` +
+        JSON.stringify(order, null, 2),
     };
 
     let data;
     try {
       data = await callAiApi([mergedSystem, ...conversation.slice(1)]);
     } catch (err) {
-      return "Sorry, I couldn't reach the AI service just now. Please try again in a moment.";
+      return { reply: "Sorry, I couldn't reach the AI service just now. Please try again in a moment." };
     }
 
     const assistantMessage = data.choices && data.choices[0] && data.choices[0].message;
     if (!assistantMessage) {
-      return "Sorry, I didn't get a usable response — please try again.";
+      return { reply: "Sorry, I didn't get a usable response — please try again." };
     }
 
     if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-      return assistantMessage.content || "";
+      return { reply: assistantMessage.content || "", quickReplies, orderJustConfirmed };
     }
 
     conversation.push(assistantMessage);
@@ -364,6 +548,12 @@ async function runAiTurn(history, message, order, activeSessionId) {
       }
 
       const result = executeTool(toolCall.function.name, args, order, activeSessionId);
+
+      // The most recent tool result carrying quickReplies wins — that's
+      // the choice actually relevant to what the customer should do next.
+      if (result.quickReplies) quickReplies = result.quickReplies;
+      if (result.orderConfirmed) orderJustConfirmed = true;
+
       conversation.push({
         role: "tool",
         tool_call_id: toolCall.id,
@@ -372,7 +562,7 @@ async function runAiTurn(history, message, order, activeSessionId) {
     }
   }
 
-  return "Sorry, that's taking longer than expected — could you rephrase or try again?";
+  return { reply: "Sorry, that's taking longer than expected — could you rephrase or try again?" };
 }
 
 // In-memory order state, keyed by sessionId. No database — state is lost on server restart.
@@ -380,13 +570,14 @@ const orderSessions = new Map();
 
 function createEmptyOrder() {
   return {
-    items: [], // [{ itemId, name, quantity, options, unitPrice }]
-    orderType: null, // e.g. "pickup" | "delivery"
+    items: [], // [{ itemId, name, quantity, options, addOns, notes, unitPrice }]
+    orderType: null, // "pickup" | "delivery" | "dine_in" | null
     customer: { name: null, phone: null },
     pickupTime: null, // optional, freeform (e.g. "ASAP", "3:30 PM")
     deliveryAddress: { address: null, apartmentUnit: null, instructions: null, confirmed: false },
     promotionId: null,
-    subtotal: 0, // sum of item unitPrice * quantity, before discount/tax/fee
+    notes: null, // order-level special instructions
+    subtotal: 0, // sum of (unitPrice + addOns) * quantity, before discount/tax/fee
     discount: 0,
     tax: 0,
     deliveryFee: 0,
@@ -404,8 +595,14 @@ function getOrCreateOrder(sessionId) {
   return orderSessions.get(sessionId);
 }
 
+// A line's per-unit price including any selected add-ons.
+function getItemUnitPriceWithAddOns(item) {
+  const addOnsTotal = (item.addOns || []).reduce((sum, a) => sum + a.priceDelta, 0);
+  return item.unitPrice + addOnsTotal;
+}
+
 function getOrderSubtotal(order) {
-  return order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  return order.items.reduce((sum, item) => sum + getItemUnitPriceWithAddOns(item) * item.quantity, 0);
 }
 
 function round2(amount) {
@@ -480,7 +677,7 @@ function computeDiscountAmount(order, promotion) {
         const menuItem = MENU.items.find((m) => m.id === item.itemId);
         return menuItem && menuItem.category === category;
       })
-      .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+      .reduce((sum, item) => sum + getItemUnitPriceWithAddOns(item) * item.quantity, 0);
   } else {
     base = 0;
   }
@@ -535,7 +732,9 @@ function summarizeOrder(order) {
 
   const lines = order.items.map((item) => {
     const customizations = item.options.length > 0 ? `, ${item.options.join(", ")}` : "";
-    return `${item.quantity}x ${item.name} (${item.size}${customizations})`;
+    const addOnNames = (item.addOns || []).map((a) => a.name);
+    const addOnNote = addOnNames.length > 0 ? `, ${addOnNames.join(", ")}` : "";
+    return `${item.quantity}x ${item.name} (${item.size}${customizations}${addOnNote})`;
   });
 
   const priceParts = [`Subtotal: ₹${order.subtotal.toFixed(2)}`];
@@ -562,7 +761,50 @@ function getRecommendations(order) {
   const available = MENU.items.filter((item) => item.available && !orderedItemIds.has(item.id));
   const complementary = available.filter((item) => !orderedCategories.has(item.category));
 
-  return (complementary.length > 0 ? complementary : available).slice(0, 2);
+  // Prefer items from categories the customer hasn't ordered from yet, but
+  // pad with the rest of the available menu if that alone can't fill 5.
+  const ranked = complementary.length >= 5 ? complementary : [...complementary, ...available.filter((item) => !complementary.includes(item))];
+  return ranked.slice(0, 5);
+}
+
+// Finds available menu items whose name matches a customer's (possibly
+// imprecise) wording. The AI must use this — and show the results as a
+// choice — instead of guessing an itemId when the wording doesn't exactly
+// match one item. Simple substring/word-overlap scoring, no ML/service.
+function searchMenuItems(query) {
+  if (typeof query !== "string" || query.trim().length === 0) return [];
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const queryWords = normalizedQuery.split(/\s+/).filter(Boolean);
+
+  const scored = MENU.items
+    .filter((item) => item.available)
+    .map((item) => {
+      const name = item.name.toLowerCase();
+      let score = 0;
+      if (name === normalizedQuery) score = 100;
+      else if (name.includes(normalizedQuery)) score = 80;
+      else if (queryWords.some((w) => w.length > 2 && name.includes(w))) score = 50;
+      else if (item.category.toLowerCase().includes(normalizedQuery)) score = 20;
+      return { item, score };
+    })
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return scored.slice(0, 10).map((s) => s.item);
+}
+
+// Renders a list of menu items as rich quick-reply cards (image + price),
+// so the frontend can show a tappable, image-and-select list instead of
+// the AI (or the customer) having to type an exact item name.
+function buildItemQuickReplies(items) {
+  return items.map((item) => ({
+    label: item.name,
+    value: `I'd like to add ${item.name}`,
+    image: item.image || null,
+    price: item.sizes[0].price,
+    itemId: item.id,
+  }));
 }
 
 // Builds a soft, non-pushy recommendation message (or none, if nothing to suggest).
@@ -596,8 +838,10 @@ function buildOrderReview(order) {
     size: item.size,
     quantity: item.quantity,
     options: item.options,
+    addOns: item.addOns || [],
+    notes: item.notes || null,
     unitPrice: item.unitPrice,
-    lineTotal: round2(item.unitPrice * item.quantity),
+    lineTotal: round2(getItemUnitPriceWithAddOns(item) * item.quantity),
   }));
 
   let fulfillment;
@@ -613,6 +857,8 @@ function buildOrderReview(order) {
     };
   } else if (order.orderType === "pickup") {
     fulfillment = { type: "pickup", name: order.customer.name, pickupTime: order.pickupTime };
+  } else if (order.orderType === "dine_in") {
+    fulfillment = { type: "dine_in", name: order.customer.name, phone: order.customer.phone };
   } else {
     fulfillment = { type: null };
   }
@@ -631,7 +877,7 @@ function buildOrderReview(order) {
 
   const blockers = [];
   if (order.items.length === 0) blockers.push("no items in the order");
-  if (!order.orderType) blockers.push("fulfillment method (pickup or delivery) not selected");
+  if (!order.orderType) blockers.push("fulfillment method (pickup, delivery, or dine-in) not selected");
   if (order.orderType === "pickup" && !order.customer.name) {
     blockers.push("missing customer name");
   }
@@ -641,10 +887,15 @@ function buildOrderReview(order) {
     if (!order.deliveryAddress.address) blockers.push("missing delivery address");
     else if (!order.deliveryAddress.confirmed) blockers.push("delivery address not yet confirmed");
   }
+  if (order.orderType === "dine_in") {
+    if (!order.customer.name) blockers.push("missing customer name");
+    if (!order.customer.phone) blockers.push("missing phone number");
+  }
 
   return {
     items,
     fulfillment,
+    notes: order.notes,
     promotions: { applied: appliedPromotion, eligible: getEligiblePromotions(order) },
     pricing,
     readyForCheckout: { ready: blockers.length === 0, blockers },
@@ -661,7 +912,10 @@ function summarizeOrderReview(order) {
 
   const lines = review.items.map((item) => {
     const customizations = item.options.length > 0 ? `, ${item.options.join(", ")}` : "";
-    return `${item.quantity}x ${item.name} (${item.size}${customizations})`;
+    const addOnNames = (item.addOns || []).map((a) => a.name);
+    const addOnNote = addOnNames.length > 0 ? `, ${addOnNames.join(", ")}` : "";
+    const noteText = item.notes ? ` [note: ${item.notes}]` : "";
+    return `${item.quantity}x ${item.name} (${item.size}${customizations}${addOnNote})${noteText}`;
   });
   const parts = [`Items: ${lines.join("; ")}`];
 
@@ -673,8 +927,14 @@ function summarizeOrderReview(order) {
     const addressNote = f.apartmentUnit ? `${f.address}, ${f.apartmentUnit}` : f.address;
     const confirmedNote = f.addressConfirmed ? "" : " (address not yet confirmed)";
     parts.push(`Delivery for ${f.name || "(name needed)"} to ${addressNote || "(address needed)"}${confirmedNote}`);
+  } else if (review.fulfillment.type === "dine_in") {
+    parts.push(`Dine-in for ${review.fulfillment.name || "(name needed)"}, ${review.fulfillment.phone || "(phone needed)"}`);
   } else {
     parts.push("Fulfillment method not yet selected");
+  }
+
+  if (review.notes) {
+    parts.push(`Order note: ${review.notes}`);
   }
 
   if (review.promotions.applied) {
@@ -698,7 +958,7 @@ function summarizeOrderReview(order) {
 
 // Adds one valid menu item to the order. Returns either an added item, a
 // clarifying question (missing/invalid size), or a hard validation error.
-function addItemToOrder(order, { itemId, size, quantity, options }) {
+function addItemToOrder(order, { itemId, size, quantity, options, addOns, notes }) {
   if (typeof itemId !== "string" || itemId.trim().length === 0) {
     return { error: "itemId is required and must be a non-empty string." };
   }
@@ -729,10 +989,11 @@ function addItemToOrder(order, { itemId, size, quantity, options }) {
   } else if (menuItem.sizes.length === 1) {
     chosenSize = menuItem.sizes[0];
   } else {
-    const sizeNames = menuItem.sizes.map((s) => s.name).join(", ");
+    const sizeNames = menuItem.sizes.map((s) => s.name);
     return {
       needsClarification: true,
-      reply: `What size would you like for ${menuItem.name}? Choose from: ${sizeNames}.`,
+      reply: `What size would you like for ${menuItem.name}? Choose from: ${sizeNames.join(", ")}.`,
+      quickReplies: sizeNames,
     };
   }
 
@@ -753,6 +1014,15 @@ function addItemToOrder(order, { itemId, size, quantity, options }) {
     normalizedOptions.push(match);
   }
 
+  const addOnsResult = validateAddOnSelections(menuItem, addOns);
+  if (addOnsResult.error || addOnsResult.needsClarification) {
+    return addOnsResult;
+  }
+
+  if (notes !== undefined && typeof notes !== "string") {
+    return { error: "notes must be a string." };
+  }
+
   order.items.push({
     lineId: crypto.randomUUID(),
     itemId: menuItem.id,
@@ -760,25 +1030,100 @@ function addItemToOrder(order, { itemId, size, quantity, options }) {
     size: chosenSize.name,
     quantity: qty,
     options: normalizedOptions,
+    addOns: addOnsResult.addOns,
+    notes: notes ? notes.trim() : null,
     unitPrice: chosenSize.price,
   });
   recalculateTotal(order);
 
+  const addOnNote = addOnsResult.addOns.length > 0 ? ` with ${addOnsResult.addOns.map((a) => a.name).join(", ")}` : "";
   return {
-    reply: `Added ${qty} x ${menuItem.name} (${chosenSize.name}) to your order.`,
+    reply: `Added ${qty} x ${menuItem.name} (${chosenSize.name})${addOnNote} to your order.`,
   };
+}
+
+// Validates a requested list of add-on option names against a menu item's
+// addOnGroups (each group has its own min/max and required flag). Returns
+// { addOns: [...] } on success, { error } for an invalid name/count, or
+// { needsClarification, reply, quickReplies } if a required group hasn't
+// been satisfied yet — never fills in a default choice.
+function validateAddOnSelections(menuItem, requestedAddOns) {
+  const groups = menuItem.addOnGroups || [];
+  const requested = Array.isArray(requestedAddOns) ? requestedAddOns : [];
+
+  if (groups.length === 0) {
+    if (requested.length > 0) {
+      return { error: `${menuItem.name} has no add-ons available.` };
+    }
+    return { addOns: [] };
+  }
+
+  const matchedByGroup = new Map(groups.map((g) => [g.name, []]));
+  const allOptionNames = groups.flatMap((g) => g.options.map((o) => o.name));
+
+  for (const reqName of requested) {
+    if (typeof reqName !== "string") {
+      return { error: "Each add-on must be a string." };
+    }
+    let matchedGroup = null;
+    let matchedOption = null;
+    for (const group of groups) {
+      const found = group.options.find((o) => o.name.toLowerCase() === reqName.toLowerCase());
+      if (found) {
+        matchedGroup = group;
+        matchedOption = found;
+        break;
+      }
+    }
+    if (!matchedOption) {
+      return {
+        error: `'${reqName}' is not a valid add-on for ${menuItem.name}. Available add-ons: ${allOptionNames.join(", ") || "none"}.`,
+      };
+    }
+    matchedByGroup.get(matchedGroup.name).push(matchedOption);
+  }
+
+  for (const group of groups) {
+    const chosen = matchedByGroup.get(group.name);
+    if (chosen.length > group.max) {
+      return { error: `Choose at most ${group.max} option(s) from '${group.name}' for ${menuItem.name}.` };
+    }
+    if (group.required && chosen.length < group.min) {
+      const optionNames = group.options.map((o) => o.name);
+      const countPhrase = group.min === group.max ? `${group.min}` : `${group.min}-${group.max}`;
+      return {
+        needsClarification: true,
+        reply: `Please choose ${countPhrase} option(s) for "${group.name}" on ${menuItem.name}: ${optionNames.join(", ")}.`,
+        quickReplies: optionNames,
+      };
+    }
+  }
+
+  const flat = [];
+  for (const group of groups) {
+    for (const opt of matchedByGroup.get(group.name)) {
+      flat.push({ groupName: group.name, name: opt.name, priceDelta: opt.priceDelta });
+    }
+  }
+  return { addOns: flat };
 }
 
 // Modifies quantity, size, and/or options on an existing order line item.
 // Each provided field is validated against the item's own menu entry.
-function updateOrderItemInOrder(order, lineId, { quantity, size, options }) {
+function updateOrderItemInOrder(order, lineId, { quantity, size, options, addOns, notes }) {
   const item = order.items.find((i) => i.lineId === lineId);
   if (!item) {
     return { error: `Order item '${lineId}' was not found.` };
   }
 
-  if (quantity === undefined && size === undefined && options === undefined) {
-    return { error: "Provide at least one of quantity, size, or options to update." };
+  if (
+    quantity === undefined &&
+    size === undefined &&
+    options === undefined &&
+    addOns === undefined &&
+    notes === undefined
+  ) {
+    return { error: "Provide at least one of quantity, size, options, addOns, or notes to update." };
   }
 
   const menuItem = MENU.items.find((m) => m.id === item.itemId);
@@ -824,12 +1169,26 @@ function updateOrderItemInOrder(order, lineId, { quantity, size, options }) {
     }
   }
 
+  let addOnsResult;
+  if (addOns !== undefined) {
+    addOnsResult = validateAddOnSelections(menuItem, addOns);
+    if (addOnsResult.error || addOnsResult.needsClarification) {
+      return addOnsResult;
+    }
+  }
+
+  if (notes !== undefined && typeof notes !== "string") {
+    return { error: "notes must be a string." };
+  }
+
   if (quantity !== undefined) item.quantity = quantity;
   if (chosenSize !== undefined) {
     item.size = chosenSize.name;
     item.unitPrice = chosenSize.price;
   }
   if (normalizedOptions !== undefined) item.options = normalizedOptions;
+  if (addOnsResult !== undefined) item.addOns = addOnsResult.addOns;
+  if (notes !== undefined) item.notes = notes.trim() || null;
 
   recalculateTotal(order);
 
@@ -916,6 +1275,46 @@ function setPickupDetails(order, { name, pickupTime }) {
 
   const timeNote = order.pickupTime ? ` for ${order.pickupTime}` : "";
   return { reply: `Got it — pickup order for ${order.customer.name}${timeNote}.` };
+}
+
+// Selects dine-in as the order type and stores the customer's name and
+// phone number (both required). Only asks for whatever is still missing.
+function setDineInDetails(order, { name, phone }) {
+  if (name !== undefined) {
+    if (typeof name !== "string" || name.trim().length === 0) {
+      return { error: "name must be a non-empty string." };
+    }
+    order.customer.name = name.trim();
+  }
+
+  if (phone !== undefined) {
+    if (typeof phone !== "string" || phone.trim().length === 0) {
+      return { error: "phone must be a non-empty string." };
+    }
+    order.customer.phone = phone.trim();
+  }
+
+  order.orderType = "dine_in";
+  recalculateTotal(order); // orderType affects deliveryFee (none for dine-in)
+
+  const missing = [];
+  if (!order.customer.name) missing.push("your name");
+  if (!order.customer.phone) missing.push("a phone number");
+
+  if (missing.length > 0) {
+    return { needsClarification: true, reply: `I still need ${missing.join(", ")} for dine-in.` };
+  }
+
+  return { reply: `Got it — dine-in order for ${order.customer.name}, ${order.customer.phone}.` };
+}
+
+// Sets or clears the order-level special instructions note.
+function setOrderNotes(order, notes) {
+  if (typeof notes !== "string") {
+    return { error: "notes must be a string." };
+  }
+  order.notes = notes.trim() || null;
+  return { reply: order.notes ? `Got it — noted: "${order.notes}".` : "Cleared the order note." };
 }
 
 // Selects delivery as the order type and stores the customer's name, phone,
@@ -1086,8 +1485,21 @@ function confirmOrder(order, customerReply, sessionId) {
   order.status = "confirmed";
 
   const saved = saveConfirmedOrder(sessionId, order);
+  const replyText = `Your order is confirmed! Order #${saved.orderId}. ${summarizeOrderReview(order).reply}`;
 
-  return { reply: `Your order is confirmed! Order #${saved.orderId}. ${summarizeOrderReview(order).reply}` };
+  // Cart clears immediately after a successful order — same sessionId,
+  // so order history (data/orders.json, filtered by session) keeps
+  // accumulating across multiple orders in one browser session.
+  resetOrderInPlace(order);
+
+  return { reply: replyText, orderConfirmed: true, orderId: saved.orderId, orderTotal: saved.order.total };
+}
+
+// Mutates `order` back to a fresh empty order in place (same object
+// reference — callers hold onto `order`, so a plain reassignment wouldn't
+// be visible to them).
+function resetOrderInPlace(order) {
+  Object.assign(order, createEmptyOrder());
 }
 
 function resolveSessionId(sessionId) {
@@ -1116,9 +1528,9 @@ app.post("/api/chat", async (req, res) => {
   const activeSessionId = resolved.sessionId;
   const order = getOrCreateOrder(activeSessionId);
 
-  const reply = await runAiTurn(history, message, order, activeSessionId);
+  const { reply, quickReplies, orderJustConfirmed } = await runAiTurn(history, message, order, activeSessionId);
 
-  res.json({ reply, sessionId: activeSessionId, order });
+  res.json({ reply, sessionId: activeSessionId, order, quickReplies: quickReplies || null, orderJustConfirmed: Boolean(orderJustConfirmed) });
 });
 
 // Returns the full menu so the frontend can render it. Read-only.
@@ -1129,7 +1541,7 @@ app.get("/api/menu", (req, res) => {
 // Adds one valid menu item to the current session's order.
 // Does not support checkout yet.
 app.post("/api/order/items", (req, res) => {
-  const { sessionId, itemId, size, quantity, options } = req.body || {};
+  const { sessionId, itemId, size, quantity, options, addOns, notes } = req.body || {};
 
   const resolved = resolveSessionId(sessionId);
   if (resolved.error) {
@@ -1139,19 +1551,25 @@ app.post("/api/order/items", (req, res) => {
   const activeSessionId = resolved.sessionId;
   const order = getOrCreateOrder(activeSessionId);
 
-  const result = addItemToOrder(order, { itemId, size, quantity, options });
+  const result = addItemToOrder(order, { itemId, size, quantity, options, addOns, notes });
 
   if (result.error) {
     return res.status(400).json({ error: result.error });
   }
 
-  res.json({ reply: result.reply, sessionId: activeSessionId, order });
+  res.json({
+    reply: result.reply,
+    sessionId: activeSessionId,
+    order,
+    needsClarification: Boolean(result.needsClarification),
+    quickReplies: result.quickReplies || null,
+  });
 });
 
 // Modifies quantity, size, and/or options on an existing order item.
 // Does not support checkout yet.
 app.patch("/api/order/items/:lineId", (req, res) => {
-  const { sessionId, quantity, size, options } = req.body || {};
+  const { sessionId, quantity, size, options, addOns, notes } = req.body || {};
   const { lineId } = req.params;
 
   const resolved = resolveSessionId(sessionId);
@@ -1162,7 +1580,7 @@ app.patch("/api/order/items/:lineId", (req, res) => {
   const activeSessionId = resolved.sessionId;
   const order = getOrCreateOrder(activeSessionId);
 
-  const result = updateOrderItemInOrder(order, lineId, { quantity, size, options });
+  const result = updateOrderItemInOrder(order, lineId, { quantity, size, options, addOns, notes });
 
   if (result.error) {
     return res.status(400).json({ error: result.error });
@@ -1286,6 +1704,49 @@ app.post("/api/order/pickup", (req, res) => {
   res.json({ reply: result.reply, sessionId: activeSessionId, order });
 });
 
+// Selects dine-in as the order type and collects the customer's name and
+// phone number (both required), ahead of checkout.
+app.post("/api/order/dine-in", (req, res) => {
+  const { sessionId, name, phone } = req.body || {};
+
+  const resolved = resolveSessionId(sessionId);
+  if (resolved.error) {
+    return res.status(400).json({ error: resolved.error });
+  }
+
+  const activeSessionId = resolved.sessionId;
+  const order = getOrCreateOrder(activeSessionId);
+
+  const result = setDineInDetails(order, { name, phone });
+
+  if (result.error) {
+    return res.status(400).json({ error: result.error });
+  }
+
+  res.json({ reply: result.reply, sessionId: activeSessionId, order });
+});
+
+// Sets (or clears, with an empty string) the order-level special instructions note.
+app.post("/api/order/notes", (req, res) => {
+  const { sessionId, notes } = req.body || {};
+
+  const resolved = resolveSessionId(sessionId);
+  if (resolved.error) {
+    return res.status(400).json({ error: resolved.error });
+  }
+
+  const activeSessionId = resolved.sessionId;
+  const order = getOrCreateOrder(activeSessionId);
+
+  const result = setOrderNotes(order, notes);
+
+  if (result.error) {
+    return res.status(400).json({ error: result.error });
+  }
+
+  res.json({ reply: result.reply, sessionId: activeSessionId, order });
+});
+
 // Selects delivery as the order type and collects name, phone, full address
 // (all required), plus apartment/unit and delivery instructions (optional).
 app.post("/api/order/delivery", (req, res) => {
@@ -1347,6 +1808,26 @@ app.get("/api/order/review", (req, res) => {
   res.json({ reply, sessionId: activeSessionId, review, order });
 });
 
+// Returns this session's own placed orders (newest first) for the customer-
+// facing Orders tab. Read-only, scoped by sessionId — no customer accounts,
+// consistent with the rest of the customer flow. Reuses the same saved-order
+// log the staff dashboard reads, just filtered to one session.
+app.get("/api/order/history", (req, res) => {
+  const { sessionId } = req.query;
+
+  const resolved = resolveSessionId(sessionId);
+  if (resolved.error) {
+    return res.status(400).json({ error: resolved.error });
+  }
+
+  const activeSessionId = resolved.sessionId;
+  const orders = readSavedOrders()
+    .filter((record) => record.sessionId === activeSessionId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  res.json({ sessionId: activeSessionId, orders });
+});
+
 // Confirms and finalizes the order. Requires an explicit, unambiguous
 // confirmation reply — the only way order.confirmed/status ever become true.
 app.post("/api/order/confirm", (req, res) => {
@@ -1370,7 +1851,13 @@ app.post("/api/order/confirm", (req, res) => {
     return res.status(400).json({ error: result.error });
   }
 
-  res.json({ reply: result.reply, sessionId: activeSessionId, order });
+  res.json({
+    reply: result.reply,
+    sessionId: activeSessionId,
+    order,
+    orderId: result.orderId || null,
+    orderTotal: result.orderTotal != null ? result.orderTotal : null,
+  });
 });
 
 const STAFF_ORDER_STATUSES = ["confirmed", "preparing", "ready", "completed", "cancelled"];
