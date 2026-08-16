@@ -55,6 +55,13 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
+// Serves the frontend (index.html, staff.html, app.js, style.css, ...) from
+// this same server/origin — visit "/" for the chat UI, "/staff.html" for
+// the staff dashboard. Falls through to the API routes below for anything
+// that isn't a static file.
+const FRONTEND_PATH = path.join(__dirname, "..", "frontend");
+app.use(express.static(FRONTEND_PATH));
+
 function buildMessages(history, message) {
   const activePromotions = PROMOTIONS.promotions.filter((p) => p.active);
 
