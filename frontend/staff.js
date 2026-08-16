@@ -58,7 +58,7 @@ async function authFetch(url, options = {}) {
 }
 
 function formatMoney(amount) {
-  return `$${Number(amount).toFixed(2)}`;
+  return `₹${Number(amount).toFixed(2)}`;
 }
 
 function formatItems(items) {

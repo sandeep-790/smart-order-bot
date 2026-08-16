@@ -23,7 +23,20 @@ const ORDERS_PATH = path.join(__dirname, "..", "data", "orders.json");
 
 // Simple, hardcoded pricing config — edit these two values directly.
 const TAX_RATE = 0.08; // 8% sales tax, applied to the discounted subtotal
-const DELIVERY_FEE = 3.99; // flat fee, applied only to orderType "delivery"
+const DELIVERY_FEE = 40; // flat fee (INR), applied only to orderType "delivery"
+
+// AI provider — any OpenAI-compatible chat completions API (Gemini, Groq,
+// OpenRouter, etc. all work). Without AI_API_KEY set, /api/chat replies
+// with a clear "not configured" message instead of crashing.
+const AI_API_BASE_URL = (process.env.AI_API_BASE_URL || "").replace(/\/+$/, "");
+const AI_API_KEY = process.env.AI_API_KEY || "";
+const AI_MODEL = process.env.AI_MODEL || "";
+if (!AI_API_KEY) {
+  console.warn(
+    "Warning: AI_API_KEY is not set in .env — /api/chat will reply with a " +
+    "placeholder message instead of calling a real AI provider."
+  );
+}
 
 // Staff dashboard credentials — required to access /api/staff/*. Set these
 // in .env; there is no default, so auth fails closed if unconfigured.
@@ -68,8 +81,12 @@ function buildMessages(history, message) {
   const systemContent =
     `${SYSTEM_PROMPT}\n\n` +
     "## Menu Data\n" +
-    "This is the only source of truth for menu items, prices, and availability. " +
-    "Never invent items or prices that aren't listed here.\n\n" +
+    "This is the only source of truth for menu items, prices, and availability — " +
+    "a JSON array below. All prices are in Indian Rupees (INR). When stating a " +
+    "price, copy the exact number from this data and prefix it with the ₹ symbol " +
+    "(e.g. ₹60), never $ or any other currency. Never invent an item, price, or " +
+    "size that isn't literally present in this JSON — if you're not sure an item " +
+    "exists, say you're not sure rather than guessing.\n\n" +
     JSON.stringify(MENU, null, 2) +
     "\n\n## Active Promotions\n" +
     "Only mention or apply a promotion listed here, and only when its eligibility " +
@@ -88,9 +105,274 @@ function buildMessages(history, message) {
   ];
 }
 
-// Placeholder reply generator — swap this out for a real AI provider call later.
-function getMockReply(messages) {
-  return "Thanks for your message! (Placeholder reply — AI integration isn't connected yet.)";
+// Tool definitions for AI function-calling — one per order-modifying or
+// order-reading backend action. Each maps directly onto an existing,
+// already-validated function; the tools add no new business logic of
+// their own, just a dispatch layer.
+const TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "add_item_to_order",
+      description:
+        "Add one valid menu item to the customer's order. If the item has more " +
+        "than one size and none is given, this returns a clarifying question " +
+        "instead of adding it — ask the customer and call again with their answer.",
+      parameters: {
+        type: "object",
+        properties: {
+          itemId: { type: "string", description: "The menu item's id, e.g. 'cof-latte'." },
+          size: { type: "string", description: "Size name, required only if the item offers more than one size." },
+          quantity: { type: "integer", description: "How many to add. Defaults to 1." },
+          options: { type: "array", items: { type: "string" }, description: "Customization names from the item's own options list." },
+        },
+        required: ["itemId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_order_item",
+      description: "Change the quantity, size, and/or options of an item already in the order.",
+      parameters: {
+        type: "object",
+        properties: {
+          lineId: { type: "string", description: "The order line's lineId, from the current order state." },
+          quantity: { type: "integer" },
+          size: { type: "string" },
+          options: { type: "array", items: { type: "string" } },
+        },
+        required: ["lineId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "remove_order_item",
+      description: "Remove an item from the order entirely, or reduce its quantity by a given amount.",
+      parameters: {
+        type: "object",
+        properties: {
+          lineId: { type: "string", description: "The order line's lineId, from the current order state." },
+          quantity: { type: "integer", description: "Amount to reduce by. Omit to remove the line entirely." },
+        },
+        required: ["lineId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "apply_promotion",
+      description: "Apply a promotion to the order. Only succeeds if it's active and its eligibility rules are currently met.",
+      parameters: {
+        type: "object",
+        properties: {
+          promotionId: { type: "string" },
+        },
+        required: ["promotionId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_pickup_details",
+      description: "Select pickup and set the customer's name (required) and pickup time (optional). Call with only the fields the customer just gave you.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          pickupTime: { type: "string" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_delivery_details",
+      description:
+        "Select delivery and set name, phone, and address (all required), plus apartment/unit and " +
+        "instructions (optional). Call with only the fields the customer just gave you. Once all " +
+        "required fields are set, this returns a delivery address that must be read back and confirmed " +
+        "with confirm_delivery_address before checkout.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          phone: { type: "string" },
+          address: { type: "string" },
+          apartmentUnit: { type: "string" },
+          instructions: { type: "string" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "confirm_delivery_address",
+      description: "Confirms the delivery address exactly as currently stored, after the customer has explicitly agreed it's correct.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_order_review",
+      description: "Returns the complete order summary — items, fulfillment, promotions, price breakdown, and whether it's ready for checkout.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_recommendations",
+      description: "Returns 1-2 available menu items to optionally suggest to the customer.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_eligible_promotions",
+      description: "Returns active promotions the current order is currently eligible for.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "confirm_order",
+      description:
+        "Finalizes and saves the order. Only call this after the customer has given an explicit, " +
+        "unambiguous confirmation (e.g. 'yes', 'confirm') in response to the final order summary — " +
+        "never for an ambiguous reply like 'ok' or 'sure'. Pass their exact words; the system " +
+        "independently re-checks that the reply is genuinely unambiguous and will refuse otherwise.",
+      parameters: {
+        type: "object",
+        properties: {
+          customerReplyText: { type: "string", description: "The customer's own message confirming the order, verbatim." },
+        },
+        required: ["customerReplyText"],
+      },
+    },
+  },
+];
+
+// Dispatches one AI tool call onto the matching, already-validated backend
+// function. Returns a plain object (JSON-serialized back to the model) —
+// never throws for a bad call, since the model needs to see errors to
+// self-correct on the next turn.
+function executeTool(name, args, order, activeSessionId) {
+  switch (name) {
+    case "add_item_to_order":
+      return addItemToOrder(order, args);
+    case "update_order_item":
+      return updateOrderItemInOrder(order, args.lineId, args);
+    case "remove_order_item":
+      return removeOrderItemFromOrder(order, args.lineId, args);
+    case "apply_promotion":
+      return applyPromotionToOrder(order, args.promotionId);
+    case "set_pickup_details":
+      return setPickupDetails(order, args);
+    case "set_delivery_details":
+      return setDeliveryDetails(order, args);
+    case "confirm_delivery_address":
+      return confirmDeliveryAddress(order);
+    case "get_order_review":
+      return { review: buildOrderReview(order) };
+    case "get_recommendations":
+      return { recommendations: getRecommendations(order) };
+    case "get_eligible_promotions":
+      return { eligiblePromotions: getEligiblePromotions(order) };
+    case "confirm_order":
+      return confirmOrder(order, args.customerReplyText, activeSessionId);
+    default:
+      return { error: `Unknown tool: ${name}` };
+  }
+}
+
+async function callAiApi(messages) {
+  const res = await fetch(`${AI_API_BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${AI_API_KEY}`,
+    },
+    body: JSON.stringify({ model: AI_MODEL, messages, tools: TOOLS, tool_choice: "auto" }),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text().catch(() => "");
+    throw new Error(`AI provider request failed (${res.status}): ${bodyText.slice(0, 300)}`);
+  }
+
+  return res.json();
+}
+
+const MAX_TOOL_CALL_STEPS = 6;
+
+// Runs one full chat turn: sends the conversation (+ live order state) to
+// the AI, executes any tool calls it requests against the real order, and
+// repeats until it responds with plain text or a safety cap is hit.
+async function runAiTurn(history, message, order, activeSessionId) {
+  if (!AI_API_KEY) {
+    return "AI isn't configured yet on this server — set AI_API_KEY (and AI_API_BASE_URL/AI_MODEL) in .env.";
+  }
+
+  const conversation = buildMessages(history, message);
+
+  for (let step = 0; step < MAX_TOOL_CALL_STEPS; step++) {
+    // Merged into ONE system message, not two — some OpenAI-compatible
+    // providers (confirmed: Gemini) silently drop system content when more
+    // than one system-role message is present, instead of concatenating them.
+    const mergedSystem = {
+      role: "system",
+      content:
+        `${conversation[0].content}\n\n` +
+        `## Current Order State (live — reflects everything set so far)\n${JSON.stringify(order, null, 2)}`,
+    };
+
+    let data;
+    try {
+      data = await callAiApi([mergedSystem, ...conversation.slice(1)]);
+    } catch (err) {
+      return "Sorry, I couldn't reach the AI service just now. Please try again in a moment.";
+    }
+
+    const assistantMessage = data.choices && data.choices[0] && data.choices[0].message;
+    if (!assistantMessage) {
+      return "Sorry, I didn't get a usable response — please try again.";
+    }
+
+    if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+      return assistantMessage.content || "";
+    }
+
+    conversation.push(assistantMessage);
+
+    for (const toolCall of assistantMessage.tool_calls) {
+      let args = {};
+      try {
+        args = JSON.parse(toolCall.function.arguments || "{}");
+      } catch (err) {
+        args = {};
+      }
+
+      const result = executeTool(toolCall.function.name, args, order, activeSessionId);
+      conversation.push({
+        role: "tool",
+        tool_call_id: toolCall.id,
+        content: JSON.stringify(result),
+      });
+    }
+  }
+
+  return "Sorry, that's taking longer than expected — could you rephrase or try again?";
 }
 
 // In-memory order state, keyed by sessionId. No database — state is lost on server restart.
@@ -149,7 +431,7 @@ function checkPromotionEligibility(order, promotion) {
   }
 
   if (e.minOrderValue != null && getOrderSubtotal(order) < e.minOrderValue) {
-    return { eligible: false, reason: `requires a minimum order of $${e.minOrderValue.toFixed(2)}` };
+    return { eligible: false, reason: `requires a minimum order of ₹${e.minOrderValue.toFixed(2)}` };
   }
 
   if (e.customerType && e.customerType !== "all") {
@@ -256,11 +538,11 @@ function summarizeOrder(order) {
     return `${item.quantity}x ${item.name} (${item.size}${customizations})`;
   });
 
-  const priceParts = [`Subtotal: $${order.subtotal.toFixed(2)}`];
-  if (order.discount > 0) priceParts.push(`Discount: -$${order.discount.toFixed(2)}`);
-  priceParts.push(`Tax: $${order.tax.toFixed(2)}`);
-  if (order.deliveryFee > 0) priceParts.push(`Delivery fee: $${order.deliveryFee.toFixed(2)}`);
-  priceParts.push(`Total: $${order.total.toFixed(2)}`);
+  const priceParts = [`Subtotal: ₹${order.subtotal.toFixed(2)}`];
+  if (order.discount > 0) priceParts.push(`Discount: -₹${order.discount.toFixed(2)}`);
+  priceParts.push(`Tax: ₹${order.tax.toFixed(2)}`);
+  if (order.deliveryFee > 0) priceParts.push(`Delivery fee: ₹${order.deliveryFee.toFixed(2)}`);
+  priceParts.push(`Total: ₹${order.total.toFixed(2)}`);
 
   return `Your order: ${lines.join("; ")}. ${priceParts.join(", ")}.`;
 }
@@ -400,11 +682,11 @@ function summarizeOrderReview(order) {
   }
 
   const p = review.pricing;
-  const priceBits = [`Subtotal: $${p.subtotal.toFixed(2)}`];
-  if (p.discount > 0) priceBits.push(`Discount: -$${p.discount.toFixed(2)}`);
-  priceBits.push(`Tax: $${p.tax.toFixed(2)}`);
-  if (p.deliveryFee > 0) priceBits.push(`Delivery fee: $${p.deliveryFee.toFixed(2)}`);
-  priceBits.push(`Total: $${p.total.toFixed(2)}`);
+  const priceBits = [`Subtotal: ₹${p.subtotal.toFixed(2)}`];
+  if (p.discount > 0) priceBits.push(`Discount: -₹${p.discount.toFixed(2)}`);
+  priceBits.push(`Tax: ₹${p.tax.toFixed(2)}`);
+  if (p.deliveryFee > 0) priceBits.push(`Delivery fee: ₹${p.deliveryFee.toFixed(2)}`);
+  priceBits.push(`Total: ₹${p.total.toFixed(2)}`);
   parts.push(priceBits.join(", "));
 
   if (!review.readyForCheckout.ready) {
@@ -815,7 +1097,7 @@ function resolveSessionId(sessionId) {
   return { sessionId: sessionId || crypto.randomUUID() };
 }
 
-app.post("/api/chat", (req, res) => {
+app.post("/api/chat", async (req, res) => {
   const { message, history = [], sessionId } = req.body || {};
 
   if (typeof message !== "string" || message.trim().length === 0) {
@@ -834,9 +1116,7 @@ app.post("/api/chat", (req, res) => {
   const activeSessionId = resolved.sessionId;
   const order = getOrCreateOrder(activeSessionId);
 
-  // Order-modifying tools are not wired into chat yet — see POST /api/order/items.
-  const messages = buildMessages(history, message);
-  const reply = getMockReply(messages);
+  const reply = await runAiTurn(history, message, order, activeSessionId);
 
   res.json({ reply, sessionId: activeSessionId, order });
 });

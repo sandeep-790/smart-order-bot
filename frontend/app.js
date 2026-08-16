@@ -1,10 +1,9 @@
 // CafeBot chat interface + guided ordering UI.
 //
-// The "Chat" tab below is UI-only mock (unchanged) — no AI is connected
-// yet, so it is intentionally NOT wired to any real order action. Do not
-// change sendMockBotReply/chatForm's behavior when wiring up a real AI
-// later; everything else in this file (Menu/Cart/Checkout tabs) calls the
-// real backend directly and is unrelated to that future work.
+// The "Chat" tab sends free text to POST /api/chat, which calls a real AI
+// provider (see backend/server.js — AI_API_KEY etc.) with tool-calling
+// wired to the same order actions the Menu/Cart/Checkout tabs use, so
+// chat and the guided UI share one live order/session.
 
 // Relative — the backend now serves this file itself (see backend/server.js,
 // express.static), so API calls are always same-origin. If you ever run the
@@ -17,23 +16,18 @@ const chatArea = document.getElementById("chatArea");
 const chatForm = document.getElementById("chatForm");
 const chatInput = document.getElementById("chatInput");
 const sendButton = document.getElementById("sendButton");
+const micButton = document.getElementById("micButton");
 
 // Seed conversation shown when the page loads.
 const initialMessages = [
-  { sender: "bot", text: "Hi there! Welcome to CafeBot ☕ How can I help you today?" },
+  { sender: "bot", text: "Vanakkam! Welcome to South Indian Cafe 🙏 How can I help you today?" },
   { sender: "user", text: "Hi! Can I see the menu?" },
-  { sender: "bot", text: "Of course! We've got coffee, tea, pastries, breakfast, sandwiches, and desserts. What are you in the mood for?" },
+  { sender: "bot", text: "Of course! We've got Tiffins, Dosa Varieties, Rice & Meals, Snacks & Starters, South Indian Beverages, and Desserts & Sweets. What are you in the mood for?" },
 ];
 
-// Mock bot replies, used round-robin for any message the user sends.
-const mockReplies = [
-  "Got it! Let me check that for you.",
-  "Sounds good — anything else you'd like to add?",
-  "That item is available today. Would you like to order it?",
-  "Just to confirm, could you tell me the size you'd like?",
-  "Thanks! I've noted that down.",
-];
-let replyIndex = 0;
+// Conversation sent to the AI as context — {role: "user"|"assistant", content}.
+// Starts empty; the seed bubbles above are decorative and not real history.
+const chatHistory = [];
 
 function formatTime(date) {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -77,21 +71,27 @@ function removeTypingIndicator() {
   if (el) el.remove();
 }
 
-function sendMockBotReply() {
+async function sendChatMessage(text) {
   chatInput.disabled = true;
   sendButton.disabled = true;
-
   showTypingIndicator();
-  setTimeout(() => {
-    removeTypingIndicator();
-    const reply = mockReplies[replyIndex % mockReplies.length];
-    replyIndex += 1;
-    appendMessage("bot", reply);
 
+  try {
+    const data = await apiSend("POST", "/api/chat", { message: text, history: chatHistory });
+    chatHistory.push({ role: "user", content: text });
+    chatHistory.push({ role: "assistant", content: data.reply });
+    removeTypingIndicator();
+    appendMessage("bot", data.reply);
+    // Tool calls from this turn may have changed the order — reflect it.
+    updateCartCount();
+  } catch (err) {
+    removeTypingIndicator();
+    appendMessage("bot", err.message || "Sorry, something went wrong. Please try again.");
+  } finally {
     chatInput.disabled = false;
     sendButton.disabled = false;
     chatInput.focus();
-  }, 700);
+  }
 }
 
 chatForm.addEventListener("submit", (event) => {
@@ -101,7 +101,7 @@ chatForm.addEventListener("submit", (event) => {
 
   appendMessage("user", text);
   chatInput.value = "";
-  sendMockBotReply();
+  sendChatMessage(text);
 });
 
 // Ensure Enter reliably sends the message across browsers/input methods.
@@ -111,6 +111,50 @@ chatInput.addEventListener("keydown", (event) => {
     chatForm.requestSubmit();
   }
 });
+
+// --- Speech-to-text (mic button) ------------------------------------------
+// Uses the browser's built-in Web Speech API — no server involved, no new
+// dependency. Only shown if the browser actually supports it (Safari
+// desktop and some others don't); fills the input for the customer to
+// review rather than auto-sending, since misheard speech shouldn't place
+// an order unreviewed.
+const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if (SpeechRecognitionApi) {
+  const recognition = new SpeechRecognitionApi();
+  recognition.lang = "en-IN";
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  let listening = false;
+
+  micButton.hidden = false;
+
+  recognition.addEventListener("result", (event) => {
+    const transcript = event.results[0][0].transcript;
+    chatInput.value = transcript;
+    chatInput.focus();
+  });
+
+  recognition.addEventListener("end", () => {
+    listening = false;
+    micButton.classList.remove("mic-listening");
+  });
+
+  recognition.addEventListener("error", () => {
+    listening = false;
+    micButton.classList.remove("mic-listening");
+  });
+
+  micButton.addEventListener("click", () => {
+    if (listening) {
+      recognition.stop();
+      return;
+    }
+    listening = true;
+    micButton.classList.add("mic-listening");
+    recognition.start();
+  });
+}
 
 // Render the seeded conversation on load.
 initialMessages.forEach((msg) => appendMessage(msg.sender, msg.text));
@@ -166,7 +210,7 @@ async function apiSend(method, path, body = {}) {
 }
 
 function formatMoney(amount) {
-  return `$${Number(amount).toFixed(2)}`;
+  return `₹${Number(amount).toFixed(2)}`;
 }
 
 // --- Tabs ---------------------------------------------------------------

@@ -276,7 +276,8 @@ body {
   border-color: var(--accent);
 }
 
-#sendButton {
+#sendButton,
+#micButton {
   width: 42px;
   height: 42px;
   border-radius: 50%;
@@ -288,16 +289,35 @@ body {
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, background 0.15s ease;
 }
 
-#sendButton:hover {
+#sendButton:hover,
+#micButton:hover {
   opacity: 0.9;
 }
 
 #sendButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+#micButton {
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--border);
+}
+
+#micButton.mic-listening {
+  background: #a02020;
+  color: #fff;
+  border-color: #a02020;
+  animation: mic-pulse 1.2s infinite ease-in-out;
+}
+
+@keyframes mic-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 /* Scrollbar (webkit) */

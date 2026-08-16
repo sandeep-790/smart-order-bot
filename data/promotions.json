@@ -3,11 +3,11 @@
     {
       "id": "promo-happyhour",
       "name": "Afternoon Happy Hour",
-      "rule": "20% off all Cold Drinks, daily between 2:00 PM and 4:00 PM.",
+      "rule": "20% off all South Indian Beverages, daily between 2:00 PM and 4:00 PM.",
       "discount": {
         "type": "percentage",
         "value": 20,
-        "appliesTo": "category:Cold Drinks"
+        "appliesTo": "category:South Indian Beverages"
       },
       "eligibility": {
         "timeWindow": { "start": "14:00", "end": "16:00" },
@@ -18,20 +18,20 @@
       "active": true
     },
     {
-      "id": "promo-coffeepastry",
-      "name": "Coffee + Pastry Combo",
-      "rule": "Get any Pastries-category item for 50% off when purchased alongside any Coffee-category drink.",
+      "id": "promo-tiffincombo",
+      "name": "Tiffin + Coffee Combo",
+      "rule": "Get any Tiffins-category item for 50% off when purchased alongside any South Indian Beverage.",
       "discount": {
         "type": "percentage",
         "value": 50,
-        "appliesTo": "category:Pastries"
+        "appliesTo": "category:Tiffins"
       },
       "eligibility": {
         "timeWindow": null,
         "minOrderValue": null,
         "customerType": "all",
-        "requiresItems": ["category:Coffee", "category:Pastries"],
-        "notes": "Discount applies to the lower-priced pastry if multiple qualifying items are ordered."
+        "requiresItems": ["category:Tiffins", "category:South Indian Beverages"],
+        "notes": "Discount applies across qualifying Tiffins items if multiple are ordered."
       },
       "active": true
     },
