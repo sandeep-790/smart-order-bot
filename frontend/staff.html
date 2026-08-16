@@ -7,14 +7,29 @@
   <link rel="stylesheet" href="staff.css" />
 </head>
 <body>
-  <header class="staff-header">
-    <h1>Staff Dashboard</h1>
-    <button id="refreshButton" type="button">Refresh</button>
-  </header>
+  <div id="loginView" class="login-view">
+    <form id="loginForm" class="login-form">
+      <h1>Staff Login</h1>
+      <input type="text" id="loginUsername" placeholder="Username" autocomplete="username" required />
+      <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" required />
+      <button type="submit">Log in</button>
+      <p class="login-error" id="loginError" hidden></p>
+    </form>
+  </div>
 
-  <main id="ordersContainer" class="orders-container">
-    <p class="empty-state" id="emptyState">Loading orders...</p>
-  </main>
+  <div id="dashboardView" hidden>
+    <header class="staff-header">
+      <h1>Staff Dashboard</h1>
+      <div class="staff-header-actions">
+        <button id="refreshButton" type="button">Refresh</button>
+        <button id="logoutButton" type="button">Log out</button>
+      </div>
+    </header>
+
+    <main id="ordersContainer" class="orders-container">
+      <p class="empty-state">Loading orders...</p>
+    </main>
+  </div>
 
   <script src="staff.js"></script>
 </body>

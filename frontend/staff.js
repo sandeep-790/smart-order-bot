@@ -1,11 +1,57 @@
 // CafeBot staff dashboard — reads/updates orders via the backend API.
-// No auth: for local/dev use only.
+// Protected by HTTP Basic Auth (STAFF_USERNAME/STAFF_PASSWORD on the
+// backend). Credentials are kept only in sessionStorage (cleared when the
+// tab closes) and sent as an Authorization header on every API call.
 
 const API_BASE = "http://localhost:3000";
 const STATUSES = ["confirmed", "preparing", "ready", "completed", "cancelled"];
+const AUTH_STORAGE_KEY = "cafebotStaffAuth";
 
+const loginView = document.getElementById("loginView");
+const dashboardView = document.getElementById("dashboardView");
+const loginForm = document.getElementById("loginForm");
+const loginUsername = document.getElementById("loginUsername");
+const loginPassword = document.getElementById("loginPassword");
+const loginError = document.getElementById("loginError");
 const ordersContainer = document.getElementById("ordersContainer");
 const refreshButton = document.getElementById("refreshButton");
+const logoutButton = document.getElementById("logoutButton");
+
+function getStoredAuth() {
+  return sessionStorage.getItem(AUTH_STORAGE_KEY);
+}
+
+function showLogin(message) {
+  dashboardView.hidden = true;
+  loginView.hidden = false;
+  if (message) {
+    loginError.textContent = message;
+    loginError.hidden = false;
+  } else {
+    loginError.hidden = true;
+  }
+}
+
+function showDashboard() {
+  loginView.hidden = true;
+  dashboardView.hidden = false;
+}
+
+// Wraps fetch with the stored Authorization header; on a 401 (missing,
+// wrong, or revoked credentials) it drops back to the login screen.
+async function authFetch(url, options = {}) {
+  const encoded = getStoredAuth();
+  const headers = { ...(options.headers || {}), Authorization: `Basic ${encoded}` };
+  const res = await fetch(url, { ...options, headers });
+
+  if (res.status === 401) {
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    showLogin("Session expired — please log in again.");
+    throw new Error("Unauthorized");
+  }
+
+  return res;
+}
 
 function formatMoney(amount) {
   return `$${Number(amount).toFixed(2)}`;
@@ -112,26 +158,66 @@ function renderOrders(orders) {
 async function fetchOrders() {
   ordersContainer.innerHTML = '<p class="empty-state">Loading orders...</p>';
   try {
-    const res = await fetch(`${API_BASE}/api/staff/orders`);
+    const res = await authFetch(`${API_BASE}/api/staff/orders`);
     const data = await res.json();
     renderOrders(data.orders || []);
   } catch (err) {
-    ordersContainer.innerHTML = '<p class="empty-state">Could not load orders. Is the backend running?</p>';
+    if (err.message !== "Unauthorized") {
+      ordersContainer.innerHTML = '<p class="empty-state">Could not load orders. Is the backend running?</p>';
+    }
   }
 }
 
 async function updateOrderStatus(orderId, status) {
   try {
-    await fetch(`${API_BASE}/api/staff/orders/${orderId}`, {
+    await authFetch(`${API_BASE}/api/staff/orders/${orderId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
     fetchOrders();
   } catch (err) {
-    alert("Could not update order status.");
+    if (err.message !== "Unauthorized") {
+      alert("Could not update order status.");
+    }
   }
 }
 
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const encoded = btoa(`${loginUsername.value}:${loginPassword.value}`);
+  sessionStorage.setItem(AUTH_STORAGE_KEY, encoded);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/staff/orders`, {
+      headers: { Authorization: `Basic ${encoded}` },
+    });
+    if (!res.ok) {
+      sessionStorage.removeItem(AUTH_STORAGE_KEY);
+      showLogin(res.status === 401 ? "Invalid username or password." : "Login failed — is the backend running?");
+      return;
+    }
+    loginPassword.value = "";
+    showDashboard();
+    fetchOrders();
+  } catch (err) {
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    showLogin("Could not reach the backend.");
+  }
+});
+
+logoutButton.addEventListener("click", () => {
+  sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  showLogin();
+});
+
 refreshButton.addEventListener("click", fetchOrders);
-fetchOrders();
+
+// On load: if we already have credentials from this tab session, try them
+// directly instead of showing the login form again.
+if (getStoredAuth()) {
+  showDashboard();
+  fetchOrders();
+} else {
+  showLogin();
+}

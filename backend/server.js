@@ -25,13 +25,24 @@ const ORDERS_PATH = path.join(__dirname, "..", "data", "orders.json");
 const TAX_RATE = 0.08; // 8% sales tax, applied to the discounted subtotal
 const DELIVERY_FEE = 3.99; // flat fee, applied only to orderType "delivery"
 
+// Staff dashboard credentials — required to access /api/staff/*. Set these
+// in .env; there is no default, so auth fails closed if unconfigured.
+const STAFF_USERNAME = process.env.STAFF_USERNAME || "";
+const STAFF_PASSWORD = process.env.STAFF_PASSWORD || "";
+if (!STAFF_USERNAME || !STAFF_PASSWORD) {
+  console.warn(
+    "Warning: STAFF_USERNAME / STAFF_PASSWORD are not set in .env — " +
+    "all /api/staff/* requests will be rejected until they are."
+  );
+}
+
 app.use(express.json());
 
 // Minimal CORS for local dev — the frontend is served from a different port.
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
 });
@@ -823,6 +834,11 @@ app.post("/api/chat", (req, res) => {
   res.json({ reply, sessionId: activeSessionId, order });
 });
 
+// Returns the full menu so the frontend can render it. Read-only.
+app.get("/api/menu", (req, res) => {
+  res.json({ items: MENU.items });
+});
+
 // Adds one valid menu item to the current session's order.
 // Does not support checkout yet.
 app.post("/api/order/items", (req, res) => {
@@ -1072,13 +1088,50 @@ app.post("/api/order/confirm", (req, res) => {
 
 const STAFF_ORDER_STATUSES = ["confirmed", "preparing", "ready", "completed", "cancelled"];
 
+// Constant-time string comparison (via equal-length digests) so login
+// attempts can't be timed to guess the username/password character by character.
+function timingSafeStringEqual(a, b) {
+  const hashA = crypto.createHash("sha256").update(a).digest();
+  const hashB = crypto.createHash("sha256").update(b).digest();
+  return crypto.timingSafeEqual(hashA, hashB);
+}
+
+// Gatekeeper for all /api/staff/* routes. Requires HTTP Basic Auth matching
+// STAFF_USERNAME/STAFF_PASSWORD from .env — fails closed (503) if those
+// aren't configured, rather than allowing the dashboard through unprotected.
+function requireStaffAuth(req, res, next) {
+  if (!STAFF_USERNAME || !STAFF_PASSWORD) {
+    return res.status(503).json({ error: "Staff auth is not configured on the server." });
+  }
+
+  const header = req.headers.authorization || "";
+  const [scheme, encoded] = header.split(" ");
+
+  if (scheme !== "Basic" || !encoded) {
+    res.set("WWW-Authenticate", 'Basic realm="CafeBot Staff"');
+    return res.status(401).json({ error: "Authentication required." });
+  }
+
+  const decoded = Buffer.from(encoded, "base64").toString("utf8");
+  const separatorIndex = decoded.indexOf(":");
+  const user = separatorIndex === -1 ? decoded : decoded.slice(0, separatorIndex);
+  const pass = separatorIndex === -1 ? "" : decoded.slice(separatorIndex + 1);
+
+  if (!timingSafeStringEqual(user, STAFF_USERNAME) || !timingSafeStringEqual(pass, STAFF_PASSWORD)) {
+    res.set("WWW-Authenticate", 'Basic realm="CafeBot Staff"');
+    return res.status(401).json({ error: "Invalid credentials." });
+  }
+
+  next();
+}
+
 // Returns all saved (confirmed) orders for the staff dashboard.
-app.get("/api/staff/orders", (req, res) => {
+app.get("/api/staff/orders", requireStaffAuth, (req, res) => {
   res.json({ orders: readSavedOrders() });
 });
 
 // Updates a saved order's status (e.g. confirmed -> preparing -> ready -> completed).
-app.patch("/api/staff/orders/:orderId", (req, res) => {
+app.patch("/api/staff/orders/:orderId", requireStaffAuth, (req, res) => {
   const { orderId } = req.params;
   const { status } = req.body || {};
 

@@ -16,24 +16,115 @@
       </div>
     </header>
 
-    <main class="chat-area" id="chatArea" role="log" aria-live="polite">
-      <!-- Messages are inserted here (mock data lives in app.js) -->
-    </main>
-
-    <form class="chat-input-bar" id="chatForm">
-      <input
-        type="text"
-        id="chatInput"
-        placeholder="Type a message..."
-        aria-label="Message"
-        autocomplete="off"
-      />
-      <button type="submit" id="sendButton" aria-label="Send message">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
-          <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
-        </svg>
+    <nav class="tab-bar" id="tabBar">
+      <button type="button" class="tab-button active" data-tab="chat">Chat</button>
+      <button type="button" class="tab-button" data-tab="menu">Menu</button>
+      <button type="button" class="tab-button" data-tab="cart">
+        Cart<span class="cart-count" id="cartCount" hidden>0</span>
       </button>
-    </form>
+      <button type="button" class="tab-button" data-tab="checkout">Checkout</button>
+    </nav>
+
+    <!-- Chat tab: unchanged, still mock-only, not wired to any real order action. -->
+    <section class="tab-panel active" id="tab-chat">
+      <main class="chat-area" id="chatArea" role="log" aria-live="polite">
+        <!-- Messages are inserted here (mock data lives in app.js) -->
+      </main>
+
+      <form class="chat-input-bar" id="chatForm">
+        <input
+          type="text"
+          id="chatInput"
+          placeholder="Type a message..."
+          aria-label="Message"
+          autocomplete="off"
+        />
+        <button type="submit" id="sendButton" aria-label="Send message">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+            <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
+          </svg>
+        </button>
+      </form>
+    </section>
+
+    <!-- Menu tab: browse real menu.json data, add items to the real order. -->
+    <section class="tab-panel" id="tab-menu">
+      <div class="panel-scroll" id="menuList">
+        <p class="empty-state">Loading menu...</p>
+      </div>
+    </section>
+
+    <!-- Cart tab: current order items, promotions, recommendations. -->
+    <section class="tab-panel" id="tab-cart">
+      <div class="panel-scroll">
+        <div id="cartItems">
+          <p class="empty-state">Your cart is empty.</p>
+        </div>
+
+        <div class="cart-totals" id="cartTotals" hidden></div>
+
+        <div class="panel-section" id="promotionsSection" hidden>
+          <div class="panel-section-label">Promotions</div>
+          <div id="promotionsList"></div>
+        </div>
+
+        <div class="panel-section" id="recommendationsSection" hidden>
+          <div class="panel-section-label">You might also like</div>
+          <div id="recommendationsList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Checkout tab: fulfillment details, address confirmation, review, place order. -->
+    <section class="tab-panel" id="tab-checkout">
+      <div class="panel-scroll">
+        <div class="panel-section">
+          <div class="panel-section-label">Fulfillment</div>
+          <div class="fulfillment-toggle">
+            <button type="button" class="fulfillment-option active" id="pickupToggle" data-type="pickup">Pickup</button>
+            <button type="button" class="fulfillment-option" id="deliveryToggle" data-type="delivery">Delivery</button>
+          </div>
+
+          <form class="fulfillment-form" id="pickupForm">
+            <input type="text" id="pickupName" placeholder="Name for pickup" autocomplete="name" />
+            <input type="text" id="pickupTime" placeholder="Pickup time (optional)" />
+            <button type="submit">Save pickup details</button>
+          </form>
+
+          <form class="fulfillment-form" id="deliveryForm" hidden>
+            <input type="text" id="deliveryName" placeholder="Name" autocomplete="name" />
+            <input type="tel" id="deliveryPhone" placeholder="Phone number" autocomplete="tel" />
+            <input type="text" id="deliveryAddress" placeholder="Full delivery address" autocomplete="street-address" />
+            <input type="text" id="deliveryApartment" placeholder="Apartment / unit (optional)" />
+            <input type="text" id="deliveryInstructions" placeholder="Delivery instructions (optional)" />
+            <button type="submit">Save delivery details</button>
+          </form>
+
+          <p class="fulfillment-reply" id="fulfillmentReply" hidden></p>
+
+          <div class="address-confirm" id="addressConfirm" hidden>
+            <p id="addressConfirmText"></p>
+            <button type="button" id="confirmAddressButton">Confirm address</button>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-section-label">Review Order</div>
+          <button type="button" id="reviewButton">Review order</button>
+          <div id="reviewSummary"></div>
+        </div>
+
+        <div class="panel-section">
+          <button type="button" id="placeOrderButton" disabled>Place Order</button>
+          <p class="checkout-blockers" id="checkoutBlockers" hidden></p>
+        </div>
+
+        <div class="order-confirmed" id="orderConfirmed" hidden>
+          <p id="orderConfirmedText"></p>
+          <button type="button" id="newOrderButton">Start a new order</button>
+        </div>
+      </div>
+    </section>
   </div>
 
   <script src="app.js"></script>

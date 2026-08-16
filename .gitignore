@@ -1,6 +1,7 @@
 .env
 node_modules/
 __pycache__/
+.DS_Store
 
 # Runtime order log — contains real customer data (name, phone, address)
 # once the app is used. backend/server.js creates it automatically if
