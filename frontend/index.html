@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CafeBot</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="chat-app">
+    <header class="chat-header">
+      <div class="chat-header-avatar">☕</div>
+      <div class="chat-header-info">
+        <h1>CafeBot</h1>
+        <p>Usually replies in a few seconds</p>
+      </div>
+    </header>
+
+    <main class="chat-area" id="chatArea" role="log" aria-live="polite">
+      <!-- Messages are inserted here (mock data lives in app.js) -->
+    </main>
+
+    <form class="chat-input-bar" id="chatForm">
+      <input
+        type="text"
+        id="chatInput"
+        placeholder="Type a message..."
+        aria-label="Message"
+        autocomplete="off"
+      />
+      <button type="submit" id="sendButton" aria-label="Send message">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+          <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
+        </svg>
+      </button>
+    </form>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

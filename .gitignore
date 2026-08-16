@@ -1,0 +1,11 @@
+.env
+node_modules/
+__pycache__/
+
+# Runtime order log — contains real customer data (name, phone, address)
+# once the app is used. backend/server.js creates it automatically if
+# missing, so it's safe to exclude from version control.
+data/orders.json
+
+# Local Claude Code permission overrides — machine-specific, not shared.
+.claude/settings.local.json

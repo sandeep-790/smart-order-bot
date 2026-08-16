@@ -1,0 +1,56 @@
+{
+  "promotions": [
+    {
+      "id": "promo-happyhour",
+      "name": "Afternoon Happy Hour",
+      "rule": "20% off all Cold Drinks, daily between 2:00 PM and 4:00 PM.",
+      "discount": {
+        "type": "percentage",
+        "value": 20,
+        "appliesTo": "category:Cold Drinks"
+      },
+      "eligibility": {
+        "timeWindow": { "start": "14:00", "end": "16:00" },
+        "minOrderValue": null,
+        "customerType": "all",
+        "notes": "Applies automatically at checkout during the time window; no code needed."
+      },
+      "active": true
+    },
+    {
+      "id": "promo-coffeepastry",
+      "name": "Coffee + Pastry Combo",
+      "rule": "Get any Pastries-category item for 50% off when purchased alongside any Coffee-category drink.",
+      "discount": {
+        "type": "percentage",
+        "value": 50,
+        "appliesTo": "category:Pastries"
+      },
+      "eligibility": {
+        "timeWindow": null,
+        "minOrderValue": null,
+        "customerType": "all",
+        "requiresItems": ["category:Coffee", "category:Pastries"],
+        "notes": "Discount applies to the lower-priced pastry if multiple qualifying items are ordered."
+      },
+      "active": true
+    },
+    {
+      "id": "promo-student",
+      "name": "Student Discount",
+      "rule": "10% off entire order for students with a valid student ID.",
+      "discount": {
+        "type": "percentage",
+        "value": 10,
+        "appliesTo": "order_total"
+      },
+      "eligibility": {
+        "timeWindow": null,
+        "minOrderValue": null,
+        "customerType": "student",
+        "notes": "Requires staff verification of student ID at pickup; seasonal promotion, currently expired."
+      },
+      "active": false
+    }
+  ]
+}
