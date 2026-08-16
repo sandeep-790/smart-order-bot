@@ -1,208 +1,695 @@
 {
   "items": [
     {
-      "id": "cof-espresso",
-      "name": "Espresso",
-      "category": "Coffee",
-      "description": "Rich, concentrated shot of our house-roasted espresso blend.",
+      "id": "tif-idli",
+      "name": "Idli",
+      "category": "Tiffins",
+      "description": "Steamed rice and urad dal cakes, served with sambar and chutney.",
       "sizes": [
-        { "name": "Single", "price": 2.50 },
-        { "name": "Double", "price": 3.25 }
+        { "name": "Half (2 pcs)", "price": 40 },
+        { "name": "Full (4 pcs)", "price": 70 }
       ],
-      "options": ["Extra shot"],
+      "options": ["Extra sambar", "Extra chutney", "Extra ghee"],
       "allergens": [],
       "dietary": ["vegan", "gluten-free"],
       "available": true
     },
     {
-      "id": "cof-cappuccino",
-      "name": "Cappuccino",
-      "category": "Coffee",
-      "description": "Espresso topped with steamed milk and a thick layer of foam.",
+      "id": "tif-meduvada",
+      "name": "Medu Vada",
+      "category": "Tiffins",
+      "description": "Crispy fried lentil doughnuts, served with sambar and chutney.",
       "sizes": [
-        { "name": "Small", "price": 3.75 },
-        { "name": "Medium", "price": 4.25 },
-        { "name": "Large", "price": 4.75 }
+        { "name": "Half (2 pcs)", "price": 40 },
+        { "name": "Full (4 pcs)", "price": 70 }
       ],
-      "options": ["Oat milk", "Almond milk", "Extra shot", "Decaf"],
-      "allergens": ["milk"],
-      "dietary": ["vegetarian", "gluten-free"],
-      "available": true
-    },
-    {
-      "id": "cof-latte",
-      "name": "Latte",
-      "category": "Coffee",
-      "description": "Espresso with steamed milk and a light layer of foam.",
-      "sizes": [
-        { "name": "Small", "price": 3.95 },
-        { "name": "Medium", "price": 4.45 },
-        { "name": "Large", "price": 4.95 }
-      ],
-      "options": ["Oat milk", "Almond milk", "Vanilla syrup", "Caramel syrup", "Decaf"],
-      "allergens": ["milk"],
-      "dietary": ["vegetarian", "gluten-free"],
-      "available": true
-    },
-    {
-      "id": "cof-coldbrew",
-      "name": "Cold Brew",
-      "category": "Cold Drinks",
-      "description": "Slow-steeped for 18 hours for a smooth, low-acid coffee, served over ice.",
-      "sizes": [
-        { "name": "Medium", "price": 4.25 },
-        { "name": "Large", "price": 4.75 }
-      ],
-      "options": ["Oat milk", "Vanilla syrup"],
+      "options": ["Extra sambar", "Extra chutney"],
       "allergens": [],
-      "dietary": ["vegan", "gluten-free"],
+      "dietary": ["vegan"],
       "available": true
     },
     {
-      "id": "cd-matcha",
-      "name": "Iced Matcha Latte",
-      "category": "Cold Drinks",
-      "description": "Ceremonial-grade matcha whisked with cold milk over ice.",
-      "sizes": [
-        { "name": "Medium", "price": 4.75 },
-        { "name": "Large", "price": 5.25 }
-      ],
-      "options": ["Oat milk", "Almond milk", "Extra matcha shot"],
-      "allergens": ["milk"],
-      "dietary": ["vegetarian", "gluten-free"],
-      "available": true
-    },
-    {
-      "id": "tea-chai",
-      "name": "Chai Latte",
-      "category": "Tea",
-      "description": "Spiced black tea concentrate with steamed milk.",
-      "sizes": [
-        { "name": "Small", "price": 3.75 },
-        { "name": "Medium", "price": 4.25 },
-        { "name": "Large", "price": 4.75 }
-      ],
-      "options": ["Oat milk", "Almond milk", "Extra spice shot"],
-      "allergens": ["milk"],
-      "dietary": ["vegetarian"],
-      "available": true
-    },
-    {
-      "id": "tea-green",
-      "name": "Green Tea",
-      "category": "Tea",
-      "description": "Steeped Japanese sencha green tea leaves, served hot.",
-      "sizes": [
-        { "name": "Regular", "price": 2.95 }
-      ],
-      "options": ["Honey"],
-      "allergens": [],
-      "dietary": ["vegan", "gluten-free"],
-      "available": true
-    },
-    {
-      "id": "pas-croissant",
-      "name": "Butter Croissant",
-      "category": "Pastries",
-      "description": "Classic French croissant, baked fresh daily, flaky and buttery.",
-      "sizes": [
-        { "name": "Regular", "price": 3.25 }
-      ],
-      "options": [],
-      "allergens": ["gluten", "milk", "eggs"],
-      "dietary": ["vegetarian"],
-      "available": true
-    },
-    {
-      "id": "pas-muffin",
-      "name": "Blueberry Muffin",
-      "category": "Pastries",
-      "description": "Moist muffin loaded with fresh blueberries and a hint of lemon zest.",
-      "sizes": [
-        { "name": "Regular", "price": 3.50 }
-      ],
-      "options": [],
-      "allergens": ["gluten", "milk", "eggs"],
-      "dietary": ["vegetarian"],
-      "available": true
-    },
-    {
-      "id": "brk-avotoast",
-      "name": "Avocado Toast",
-      "category": "Breakfast",
-      "description": "Smashed avocado on toasted sourdough with chili flakes and a squeeze of lime.",
-      "sizes": [
-        { "name": "Regular", "price": 7.50 }
-      ],
-      "options": ["Add poached egg", "Add feta"],
+      "id": "tif-ravaidli",
+      "name": "Rava Idli",
+      "category": "Tiffins",
+      "description": "Soft steamed semolina cakes with mustard seeds and curry leaves.",
+      "sizes": [{ "name": "Regular (4 pcs)", "price": 60 }],
+      "options": ["Extra chutney"],
       "allergens": ["gluten"],
-      "dietary": ["vegan", "dairy-free"],
-      "available": true
-    },
-    {
-      "id": "brk-bagel",
-      "name": "Bagel with Cream Cheese",
-      "category": "Breakfast",
-      "description": "Toasted plain bagel with a generous spread of cream cheese.",
-      "sizes": [
-        { "name": "Regular", "price": 4.50 }
-      ],
-      "options": ["Everything seasoning", "Smoked salmon add-on"],
-      "allergens": ["gluten", "milk"],
       "dietary": ["vegetarian"],
       "available": true
     },
     {
-      "id": "snd-turkeyclub",
-      "name": "Turkey Club Sandwich",
-      "category": "Sandwiches",
-      "description": "Roasted turkey, bacon, lettuce, and tomato on toasted sourdough.",
-      "sizes": [
-        { "name": "Regular", "price": 9.95 }
-      ],
-      "options": ["No bacon", "Extra cheese", "Side of chips", "Side salad"],
-      "allergens": ["gluten", "milk"],
-      "dietary": [],
-      "available": true
-    },
-    {
-      "id": "snd-veggiewrap",
-      "name": "Veggie Wrap",
-      "category": "Sandwiches",
-      "description": "Hummus, roasted vegetables, spinach, and feta in a spinach tortilla.",
-      "sizes": [
-        { "name": "Regular", "price": 8.75 }
-      ],
-      "options": ["No feta (vegan)", "Side of chips", "Side salad"],
-      "allergens": ["gluten", "milk"],
-      "dietary": ["vegetarian"],
-      "available": true
-    },
-    {
-      "id": "des-cookie",
-      "name": "Chocolate Chip Cookie",
-      "category": "Desserts",
-      "description": "Thick, chewy cookie loaded with semi-sweet chocolate chips.",
-      "sizes": [
-        { "name": "Regular", "price": 2.75 }
-      ],
+      "id": "tif-sambarvada",
+      "name": "Sambar Vada",
+      "category": "Tiffins",
+      "description": "Medu vada soaked in hot, tangy sambar.",
+      "sizes": [{ "name": "Regular", "price": 60 }],
       "options": [],
-      "allergens": ["gluten", "milk", "eggs"],
+      "allergens": [],
+      "dietary": ["vegan"],
+      "available": true
+    },
+    {
+      "id": "tif-ponggal",
+      "name": "Ven Pongal",
+      "category": "Tiffins",
+      "description": "Creamy rice and moong dal cooked with ghee, pepper, and cumin.",
+      "sizes": [{ "name": "Regular", "price": 70 }],
+      "options": ["Extra ghee"],
+      "allergens": ["dairy", "nuts"],
       "dietary": ["vegetarian"],
       "available": true
     },
     {
-      "id": "des-cheesecake",
-      "name": "New York Cheesecake",
-      "category": "Desserts",
-      "description": "Classic creamy cheesecake with a graham cracker crust.",
+      "id": "tif-ravaupma",
+      "name": "Rava Upma",
+      "category": "Tiffins",
+      "description": "Savory semolina porridge with mustard seeds, curry leaves, and vegetables.",
+      "sizes": [{ "name": "Regular", "price": 60 }],
+      "options": ["Extra ghee"],
+      "allergens": ["gluten", "dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "tif-semiyaupma",
+      "name": "Semiya Upma",
+      "category": "Tiffins",
+      "description": "Savory vermicelli tossed with mustard seeds, curry leaves, and peanuts.",
+      "sizes": [{ "name": "Regular", "price": 60 }],
+      "options": [],
+      "allergens": ["gluten"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "tif-idiyappam",
+      "name": "Idiyappam",
+      "category": "Tiffins",
+      "description": "Steamed rice noodle cakes, best with coconut milk or curry.",
       "sizes": [
-        { "name": "Slice", "price": 5.50 }
+        { "name": "Half (3 pcs)", "price": 50 },
+        { "name": "Full (6 pcs)", "price": 90 }
       ],
-      "options": ["Strawberry topping"],
-      "allergens": ["gluten", "milk", "eggs"],
+      "options": ["With coconut milk", "With vegetable kurma"],
+      "allergens": [],
+      "dietary": ["vegan", "gluten-free"],
+      "available": true
+    },
+    {
+      "id": "tif-appam",
+      "name": "Appam with Stew",
+      "category": "Tiffins",
+      "description": "Lacy rice-and-coconut crepes served with a mild vegetable stew.",
+      "sizes": [{ "name": "Regular (2 pcs)", "price": 90 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "tif-poorimasala",
+      "name": "Poori Masala",
+      "category": "Tiffins",
+      "description": "Deep-fried puffed bread served with spiced potato masala.",
+      "sizes": [{ "name": "Regular (4 pcs)", "price": 80 }],
+      "options": [],
+      "allergens": ["gluten"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "dosa-plain",
+      "name": "Plain Dosa",
+      "category": "Dosa Varieties",
+      "description": "Classic thin, crispy rice-and-lentil crepe.",
+      "sizes": [{ "name": "Regular", "price": 60 }],
+      "options": ["Extra sambar", "Extra chutney"],
+      "allergens": [],
+      "dietary": ["vegan", "gluten-free"],
+      "available": true
+    },
+    {
+      "id": "dosa-masala",
+      "name": "Masala Dosa",
+      "category": "Dosa Varieties",
+      "description": "Crispy dosa filled with spiced potato masala.",
+      "sizes": [{ "name": "Regular", "price": 80 }],
+      "options": ["Extra sambar", "Extra chutney"],
+      "allergens": [],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "dosa-onion",
+      "name": "Onion Dosa",
+      "category": "Dosa Varieties",
+      "description": "Crispy dosa topped with finely chopped onions.",
+      "sizes": [{ "name": "Regular", "price": 80 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan"],
+      "available": true
+    },
+    {
+      "id": "dosa-onionmasala",
+      "name": "Onion Masala Dosa",
+      "category": "Dosa Varieties",
+      "description": "Onion dosa filled with spiced potato masala.",
+      "sizes": [{ "name": "Regular", "price": 90 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "dosa-rava",
+      "name": "Rava Dosa",
+      "category": "Dosa Varieties",
+      "description": "Lacy, crispy semolina crepe.",
+      "sizes": [{ "name": "Regular", "price": 90 }],
+      "options": [],
+      "allergens": ["gluten"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "dosa-ravamasala",
+      "name": "Rava Masala Dosa",
+      "category": "Dosa Varieties",
+      "description": "Lacy semolina crepe filled with spiced potato masala.",
+      "sizes": [{ "name": "Regular", "price": 110 }],
+      "options": [],
+      "allergens": ["gluten"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "dosa-mysoremasala",
+      "name": "Mysore Masala Dosa",
+      "category": "Dosa Varieties",
+      "description": "Dosa spread with spicy red chutney, filled with potato masala.",
+      "sizes": [{ "name": "Regular", "price": 100 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "dosa-gheeroast",
+      "name": "Ghee Roast Dosa",
+      "category": "Dosa Varieties",
+      "description": "Extra crispy dosa roasted generously in ghee.",
+      "sizes": [{ "name": "Regular", "price": 110 }],
+      "options": [],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "dosa-paneer",
+      "name": "Paneer Dosa",
+      "category": "Dosa Varieties",
+      "description": "Dosa filled with a spiced paneer (Indian cottage cheese) stuffing.",
+      "sizes": [{ "name": "Regular", "price": 130 }],
+      "options": [],
+      "allergens": ["dairy"],
       "dietary": ["vegetarian"],
       "available": false
+    },
+    {
+      "id": "dosa-cheese",
+      "name": "Cheese Dosa",
+      "category": "Dosa Varieties",
+      "description": "Crispy dosa loaded with melted cheese.",
+      "sizes": [{ "name": "Regular", "price": 120 }],
+      "options": [],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "dosa-podi",
+      "name": "Podi Dosa",
+      "category": "Dosa Varieties",
+      "description": "Dosa spread with spicy, nutty gunpowder podi and a dollop of ghee.",
+      "sizes": [{ "name": "Regular", "price": 90 }],
+      "options": [],
+      "allergens": ["nuts"],
+      "dietary": ["vegan"],
+      "available": true
+    },
+    {
+      "id": "dosa-set",
+      "name": "Set Dosa",
+      "category": "Dosa Varieties",
+      "description": "Three soft, spongy mini dosas served with chutney and sambar.",
+      "sizes": [{ "name": "Regular (3 pcs)", "price": 90 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "rice-sambar",
+      "name": "Sambar Rice",
+      "category": "Rice & Meals",
+      "description": "Steamed rice mixed with lentil-and-vegetable sambar.",
+      "sizes": [{ "name": "Regular", "price": 90 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan"],
+      "available": true
+    },
+    {
+      "id": "rice-curd",
+      "name": "Curd Rice",
+      "category": "Rice & Meals",
+      "description": "Cooling rice mixed with fresh curd, tempered with mustard seeds and curry leaves.",
+      "sizes": [{ "name": "Regular", "price": 80 }],
+      "options": [],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "rice-lemon",
+      "name": "Lemon Rice",
+      "category": "Rice & Meals",
+      "description": "Tangy rice tempered with mustard seeds, peanuts, and turmeric.",
+      "sizes": [{ "name": "Regular", "price": 80 }],
+      "options": [],
+      "allergens": ["nuts"],
+      "dietary": ["vegan"],
+      "available": true
+    },
+    {
+      "id": "rice-puliyodarai",
+      "name": "Tamarind Rice (Puliyodarai)",
+      "category": "Rice & Meals",
+      "description": "Rice mixed with a tangy, spiced tamarind paste.",
+      "sizes": [{ "name": "Regular", "price": 80 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan"],
+      "available": true
+    },
+    {
+      "id": "rice-biselebele",
+      "name": "Bisi Bele Bath",
+      "category": "Rice & Meals",
+      "description": "Spiced rice, lentils, and vegetables cooked together, Karnataka style.",
+      "sizes": [{ "name": "Regular", "price": 110 }],
+      "options": [],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "rice-biryani",
+      "name": "Vegetable Biryani",
+      "category": "Rice & Meals",
+      "description": "Fragrant basmati rice layered with spiced mixed vegetables.",
+      "sizes": [{ "name": "Regular", "price": 150 }],
+      "options": ["Extra raita", "Spicy"],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "rice-thali",
+      "name": "South Indian Thali (Meals)",
+      "category": "Rice & Meals",
+      "description": "Rice, sambar, rasam, poriyal, papad, curd, and a sweet — full meal on a plate.",
+      "sizes": [{ "name": "Regular", "price": 180 }],
+      "options": [],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "rice-rasam",
+      "name": "Rasam Rice",
+      "category": "Rice & Meals",
+      "description": "Steamed rice mixed with peppery, tangy tamarind rasam.",
+      "sizes": [{ "name": "Regular", "price": 80 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan"],
+      "available": true
+    },
+    {
+      "id": "rice-tomato",
+      "name": "Tomato Rice",
+      "category": "Rice & Meals",
+      "description": "Rice cooked with a spiced tomato masala.",
+      "sizes": [{ "name": "Regular", "price": 90 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan"],
+      "available": true
+    },
+    {
+      "id": "rice-coconut",
+      "name": "Coconut Rice",
+      "category": "Rice & Meals",
+      "description": "Rice tossed with fresh grated coconut, mustard seeds, and curry leaves.",
+      "sizes": [{ "name": "Regular", "price": 90 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan"],
+      "available": true
+    },
+    {
+      "id": "snk-onionbonda",
+      "name": "Onion Bonda",
+      "category": "Snacks & Starters",
+      "description": "Deep-fried gram flour fritters with spiced onion filling.",
+      "sizes": [{ "name": "Regular (4 pcs)", "price": 50 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan", "gluten-free"],
+      "available": true
+    },
+    {
+      "id": "snk-mysorebonda",
+      "name": "Mysore Bonda",
+      "category": "Snacks & Starters",
+      "description": "Soft, fluffy deep-fried flour dumplings.",
+      "sizes": [{ "name": "Regular (4 pcs)", "price": 50 }],
+      "options": [],
+      "allergens": ["gluten"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "snk-mixedbajji",
+      "name": "Mixed Veg Bajji",
+      "category": "Snacks & Starters",
+      "description": "Assorted vegetables dipped in gram flour batter and deep-fried.",
+      "sizes": [{ "name": "Regular (4 pcs)", "price": 60 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan", "gluten-free"],
+      "available": true
+    },
+    {
+      "id": "snk-bananabajji",
+      "name": "Banana Bajji",
+      "category": "Snacks & Starters",
+      "description": "Raw banana slices dipped in gram flour batter and deep-fried.",
+      "sizes": [{ "name": "Regular (4 pcs)", "price": 60 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan", "gluten-free"],
+      "available": true
+    },
+    {
+      "id": "snk-samosa",
+      "name": "Samosa",
+      "category": "Snacks & Starters",
+      "description": "Crispy pastry filled with spiced potatoes and peas.",
+      "sizes": [{ "name": "Regular (2 pcs)", "price": 40 }],
+      "options": [],
+      "allergens": ["gluten"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "snk-masalavada",
+      "name": "Masala Vada",
+      "category": "Snacks & Starters",
+      "description": "Crunchy fried lentil patties with onions and curry leaves.",
+      "sizes": [{ "name": "Regular (4 pcs)", "price": 50 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan"],
+      "available": true
+    },
+    {
+      "id": "snk-dahivada",
+      "name": "Dahi Vada",
+      "category": "Snacks & Starters",
+      "description": "Lentil fritters soaked in cool, spiced yogurt.",
+      "sizes": [{ "name": "Regular", "price": 70 }],
+      "options": [],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "snk-cutlet",
+      "name": "Vegetable Cutlet",
+      "category": "Snacks & Starters",
+      "description": "Crumb-fried patties of mixed vegetables and spices.",
+      "sizes": [{ "name": "Regular (2 pcs)", "price": 60 }],
+      "options": [],
+      "allergens": ["gluten"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "snk-murukku",
+      "name": "Murukku Plate",
+      "category": "Snacks & Starters",
+      "description": "Crunchy, spiral-shaped rice and lentil flour snack.",
+      "sizes": [{ "name": "Regular", "price": 40 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan", "gluten-free"],
+      "available": true
+    },
+    {
+      "id": "snk-aloobonda",
+      "name": "Aloo Bonda",
+      "category": "Snacks & Starters",
+      "description": "Deep-fried gram flour fritters with spiced potato filling.",
+      "sizes": [{ "name": "Regular (4 pcs)", "price": 50 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan", "gluten-free"],
+      "available": true
+    },
+    {
+      "id": "bev-filtercoffee",
+      "name": "Filter Coffee",
+      "category": "South Indian Beverages",
+      "description": "Strong, frothy South Indian filter coffee with milk.",
+      "sizes": [{ "name": "Regular", "price": 25 }],
+      "options": ["Less sugar", "Extra strong"],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "bev-masalachai",
+      "name": "Masala Chai",
+      "category": "South Indian Beverages",
+      "description": "Spiced tea brewed with milk, ginger, and cardamom.",
+      "sizes": [{ "name": "Regular", "price": 20 }],
+      "options": ["Less sugar"],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "bev-buttermilk",
+      "name": "Buttermilk (Chaas)",
+      "category": "South Indian Beverages",
+      "description": "Cooling spiced yogurt drink with curry leaves and ginger.",
+      "sizes": [{ "name": "Regular", "price": 30 }],
+      "options": [],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "bev-tendercoconut",
+      "name": "Tender Coconut Water",
+      "category": "South Indian Beverages",
+      "description": "Fresh, naturally sweet tender coconut water.",
+      "sizes": [{ "name": "Regular", "price": 50 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan", "gluten-free"],
+      "available": true
+    },
+    {
+      "id": "bev-badammilk",
+      "name": "Badam Milk",
+      "category": "South Indian Beverages",
+      "description": "Chilled milk flavored with almonds, saffron, and cardamom.",
+      "sizes": [{ "name": "Regular", "price": 60 }],
+      "options": [],
+      "allergens": ["dairy", "nuts"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "bev-rosemilk",
+      "name": "Rose Milk",
+      "category": "South Indian Beverages",
+      "description": "Chilled milk flavored with rose syrup.",
+      "sizes": [{ "name": "Regular", "price": 50 }],
+      "options": [],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "bev-sukkucoffee",
+      "name": "Sukku Coffee",
+      "category": "South Indian Beverages",
+      "description": "Traditional dry ginger and spice decoction, served without milk.",
+      "sizes": [{ "name": "Regular", "price": 30 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan", "gluten-free"],
+      "available": true
+    },
+    {
+      "id": "bev-lemonjuice",
+      "name": "Lemon Juice",
+      "category": "South Indian Beverages",
+      "description": "Freshly squeezed lemon juice, sweet or salted.",
+      "sizes": [{ "name": "Regular", "price": 40 }],
+      "options": ["Sweet", "Salted"],
+      "allergens": [],
+      "dietary": ["vegan", "gluten-free"],
+      "available": true
+    },
+    {
+      "id": "bev-mangolassi",
+      "name": "Mango Lassi",
+      "category": "South Indian Beverages",
+      "description": "Thick, creamy yogurt drink blended with mango pulp.",
+      "sizes": [{ "name": "Regular", "price": 70 }],
+      "options": [],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "bev-gingertea",
+      "name": "Ginger Tea",
+      "category": "South Indian Beverages",
+      "description": "Classic milk tea brewed with fresh ginger.",
+      "sizes": [{ "name": "Regular", "price": 20 }],
+      "options": ["Less sugar"],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "des-semiyapayasam",
+      "name": "Payasam (Semiya)",
+      "category": "Desserts & Sweets",
+      "description": "Sweet vermicelli pudding cooked in milk with cashews and raisins.",
+      "sizes": [{ "name": "Regular", "price": 50 }],
+      "options": [],
+      "allergens": ["dairy", "nuts", "gluten"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "des-ravakesari",
+      "name": "Rava Kesari",
+      "category": "Desserts & Sweets",
+      "description": "Sweet semolina halwa flavored with saffron and ghee.",
+      "sizes": [{ "name": "Regular", "price": 50 }],
+      "options": [],
+      "allergens": ["dairy", "gluten"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "des-mysorepak",
+      "name": "Mysore Pak",
+      "category": "Desserts & Sweets",
+      "description": "Rich, melt-in-the-mouth sweet made with gram flour and ghee.",
+      "sizes": [{ "name": "Regular (2 pcs)", "price": 60 }],
+      "options": [],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian", "gluten-free"],
+      "available": true
+    },
+    {
+      "id": "des-gulabjamun",
+      "name": "Gulab Jamun",
+      "category": "Desserts & Sweets",
+      "description": "Soft milk-solid dumplings soaked in cardamom sugar syrup.",
+      "sizes": [{ "name": "Regular (2 pcs)", "price": 50 }],
+      "options": [],
+      "allergens": ["dairy", "gluten"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "des-adapradhaman",
+      "name": "Ada Pradhaman",
+      "category": "Desserts & Sweets",
+      "description": "Kerala-style rice flakes simmered in jaggery and coconut milk.",
+      "sizes": [{ "name": "Regular", "price": 70 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan"],
+      "available": false
+    },
+    {
+      "id": "des-rasgulla",
+      "name": "Rasgulla",
+      "category": "Desserts & Sweets",
+      "description": "Soft, spongy cottage cheese balls in light sugar syrup.",
+      "sizes": [{ "name": "Regular (2 pcs)", "price": 50 }],
+      "options": [],
+      "allergens": ["dairy"],
+      "dietary": ["vegetarian"],
+      "available": true
+    },
+    {
+      "id": "des-carrothalwa",
+      "name": "Carrot Halwa (Gajar Halwa)",
+      "category": "Desserts & Sweets",
+      "description": "Grated carrots slow-cooked in milk, ghee, and sugar.",
+      "sizes": [{ "name": "Regular", "price": 70 }],
+      "options": [],
+      "allergens": ["dairy", "nuts"],
+      "dietary": ["vegetarian", "gluten-free"],
+      "available": true
+    },
+    {
+      "id": "des-badamhalwa",
+      "name": "Badam Halwa",
+      "category": "Desserts & Sweets",
+      "description": "Rich, glossy almond halwa cooked in ghee.",
+      "sizes": [{ "name": "Regular", "price": 80 }],
+      "options": [],
+      "allergens": ["dairy", "nuts"],
+      "dietary": ["vegetarian", "gluten-free"],
+      "available": true
+    },
+    {
+      "id": "des-coconutladoo",
+      "name": "Coconut Ladoo",
+      "category": "Desserts & Sweets",
+      "description": "Sweet, bite-sized balls of grated coconut and condensed milk.",
+      "sizes": [{ "name": "Regular (2 pcs)", "price": 50 }],
+      "options": [],
+      "allergens": [],
+      "dietary": ["vegan", "gluten-free"],
+      "available": true
+    },
+    {
+      "id": "des-jangiri",
+      "name": "Jangiri",
+      "category": "Desserts & Sweets",
+      "description": "Crispy, spiral-shaped urad dal sweet soaked in saffron syrup.",
+      "sizes": [{ "name": "Regular (2 pcs)", "price": 50 }],
+      "options": [],
+      "allergens": ["dairy", "gluten"],
+      "dietary": ["vegetarian"],
+      "available": true
     }
   ]
 }

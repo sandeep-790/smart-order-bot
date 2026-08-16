@@ -5,7 +5,7 @@ order, and check out; staff track incoming orders on a small dashboard.
 
 ## Folder structure
 
-- `prompts/system-prompt.md` — CafeBot's system prompt (behavior rules for the future AI integration)
+- `prompts/system-prompt.md` — CafeBot's system prompt (behavior rules the AI provider is grounded in)
 - `data/menu.json` — menu items, prices, sizes, options
 - `data/promotions.json` — promotions and their eligibility rules
 - `data/orders.json` — confirmed orders, written by the backend at runtime (gitignored — see Deployment notes)
@@ -23,15 +23,19 @@ order, and check out; staff track incoming orders on a small dashboard.
 - The backend also serves the frontend itself (`express.static`), so
   visiting the backend's URL directly gives you the whole app — no
   separate frontend host needed.
-- The customer UI has four tabs: **Menu, Cart, and Checkout are fully
-  wired to the real backend** (add/modify/remove items, promotions,
-  pickup/delivery with address confirmation, review, and confirmation-
-  gated checkout). **The free-text Chat tab is still mock-only** — typed
-  messages get a canned reply, not a real AI response.
-- No AI provider is connected yet. `/api/chat` (used only by the Chat
-  tab's free-text box) returns a placeholder reply; `OPENAI_API_KEY` /
-  `OPENAI_MODEL` in `.env` are reserved for that future work and aren't
-  read by any code yet.
+- The customer UI has four tabs, all fully wired to the real backend:
+  **Menu, Cart, and Checkout** call the order endpoints directly
+  (add/modify/remove items, promotions, pickup/delivery with address
+  confirmation, review, confirmation-gated checkout); the **Chat** tab
+  sends free text to `POST /api/chat`, which calls a real AI provider
+  (any OpenAI-compatible chat completions API — see `AI_API_BASE_URL` /
+  `AI_API_KEY` / `AI_MODEL` in `.env`) with tool-calling wired to those
+  same order actions, so a customer can do everything through
+  conversation instead of the buttons/forms if they prefer.
+- **Without `AI_API_KEY` set, the Chat tab replies with a clear
+  "AI isn't configured" message** instead of erroring — see "AI provider
+  setup" below to turn it on. Menu/Cart/Checkout work either way, since
+  they don't depend on the AI at all.
 - **The staff dashboard is protected by HTTP Basic Auth** (`STAFF_USERNAME`
   / `STAFF_PASSWORD` in `.env`). The backend fails closed — every
   `/api/staff/*` request is rejected until both are set. There's no user
@@ -61,15 +65,44 @@ order, and check out; staff track incoming orders on a small dashboard.
    and `frontend/staff.js` first, since it defaults to a relative/same-
    origin path.)
 
+## AI provider setup
+
+The Chat tab needs three env vars in `.env` — `AI_API_BASE_URL`,
+`AI_API_KEY`, `AI_MODEL`. Any provider with an OpenAI-compatible chat
+completions endpoint works; `.env.example` is pre-filled for **Google
+Gemini's free tier** (no credit card required):
+
+1. Get a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+2. Paste it into `AI_API_KEY` in your `.env`.
+3. `AI_MODEL` defaults to `gemini-flash-lite-latest` — a "-latest" alias,
+   which auto-points at whatever Google currently has live. Google
+   deprecates dated model names often (`gemini-2.0-flash` and even
+   `gemini-2.5-flash`/`-lite` were already gone as of 2026-08), so prefer
+   `-latest` aliases over a specific dated one. If you ever get a `404`
+   with "no longer available", list what your key can actually use:
+   ```bash
+   curl -s https://generativelanguage.googleapis.com/v1beta/openai/models \
+     -H "Authorization: Bearer $AI_API_KEY"
+   ```
+4. Restart the backend (`npm start`).
+
+To switch providers later, change all three values — no code changes
+needed. A couple of other options with free tiers: Groq
+([console.groq.com/keys](https://console.groq.com/keys), fast
+open-source models — not the same product as xAI's "Grok") or
+OpenRouter ([openrouter.ai/keys](https://openrouter.ai/keys), several
+models tagged free, tool-calling support varies by model).
+
 ## Deployment notes
 
 - **One deployment, not two**: the backend serves the frontend itself, so
   deploying `backend/` (e.g. to Render, Railway, Fly.io) is all you need —
   there's no separate static site to host. Requires Node 18+. Set `PORT`
   via your host's environment variables (most platforms do this
-  automatically); set `STAFF_USERNAME`/`STAFF_PASSWORD` there too, since
-  there's no `.env` file on the server (see the platform's own dashboard
-  for adding environment variables).
+  automatically); set `STAFF_USERNAME`/`STAFF_PASSWORD` and
+  `AI_API_BASE_URL`/`AI_API_KEY`/`AI_MODEL` there too, since there's no
+  `.env` file on the server (see the platform's own dashboard for adding
+  environment variables).
 - **CORS**: the backend currently allows requests from any origin
   (`Access-Control-Allow-Origin: *`). Harmless now that frontend and
   backend are same-origin by default, but tighten this if you ever split
