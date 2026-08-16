@@ -3,7 +3,11 @@
 // backend). Credentials are kept only in sessionStorage (cleared when the
 // tab closes) and sent as an Authorization header on every API call.
 
-const API_BASE = "http://localhost:3000";
+// Relative — the backend now serves this file itself (see backend/server.js,
+// express.static), so API calls are always same-origin. If you ever run the
+// frontend from a separate static server again, hardcode the backend's URL
+// here instead (e.g. "http://localhost:3000").
+const API_BASE = "";
 const STATUSES = ["confirmed", "preparing", "ready", "completed", "cancelled"];
 const AUTH_STORAGE_KEY = "cafebotStaffAuth";
 

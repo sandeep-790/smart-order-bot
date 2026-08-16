@@ -20,12 +20,18 @@ order, and check out; staff track incoming orders on a small dashboard.
   promotions, pickup/delivery details, address confirmation, deterministic
   pricing, explicit checkout confirmation, order persistence) — see
   `backend/server.js` for the full route list.
-- **The customer chat UI (`frontend/app.js`) is still mock-only** — it is
-  not wired up to the backend yet. It shows canned replies, not real order
-  data.
-- No AI provider is connected yet. `/api/chat` returns a placeholder reply;
-  `OPENAI_API_KEY` / `OPENAI_MODEL` in `.env` are reserved for that future
-  work and aren't read by any code yet.
+- The backend also serves the frontend itself (`express.static`), so
+  visiting the backend's URL directly gives you the whole app — no
+  separate frontend host needed.
+- The customer UI has four tabs: **Menu, Cart, and Checkout are fully
+  wired to the real backend** (add/modify/remove items, promotions,
+  pickup/delivery with address confirmation, review, and confirmation-
+  gated checkout). **The free-text Chat tab is still mock-only** — typed
+  messages get a canned reply, not a real AI response.
+- No AI provider is connected yet. `/api/chat` (used only by the Chat
+  tab's free-text box) returns a placeholder reply; `OPENAI_API_KEY` /
+  `OPENAI_MODEL` in `.env` are reserved for that future work and aren't
+  read by any code yet.
 - **The staff dashboard is protected by HTTP Basic Auth** (`STAFF_USERNAME`
   / `STAFF_PASSWORD` in `.env`). The backend fails closed — every
   `/api/staff/*` request is rejected until both are set. There's no user
@@ -45,29 +51,29 @@ order, and check out; staff track incoming orders on a small dashboard.
    npm install
    npm start
    ```
-3. Serve the frontend as static files, e.g.:
-   ```bash
-   cd frontend
-   python3 -m http.server 8123
-   ```
-   Then open `http://localhost:8123` for the chat UI, or
-   `http://localhost:8123/staff.html` for the staff dashboard.
-4. The staff dashboard calls the backend at a hardcoded URL — see
-   `API_BASE` at the top of `frontend/staff.js`. Update it if your backend
-   isn't running at `http://localhost:3000`.
+3. Open `http://localhost:3000` for the customer app, or
+   `http://localhost:3000/staff.html` for the staff dashboard — the
+   backend serves both, so that's the only URL you need.
+
+   (If you ever want to run the frontend from a separate static server
+   instead — e.g. `python3 -m http.server` in `frontend/` — you'll need to
+   hardcode the backend's URL in `API_BASE` at the top of `frontend/app.js`
+   and `frontend/staff.js` first, since it defaults to a relative/same-
+   origin path.)
 
 ## Deployment notes
 
-- **Backend**: a standard Node/Express app (`backend/server.js`, `npm
-  start`). Requires Node 18+. Set `PORT` via your host's environment
-  variables (most platforms do this automatically).
-- **Frontend**: static files with no build step — deploy `frontend/` to
-  any static host. Before deploying, update `API_BASE` in
-  `frontend/staff.js` to your backend's real URL (see above).
+- **One deployment, not two**: the backend serves the frontend itself, so
+  deploying `backend/` (e.g. to Render, Railway, Fly.io) is all you need —
+  there's no separate static site to host. Requires Node 18+. Set `PORT`
+  via your host's environment variables (most platforms do this
+  automatically); set `STAFF_USERNAME`/`STAFF_PASSWORD` there too, since
+  there's no `.env` file on the server (see the platform's own dashboard
+  for adding environment variables).
 - **CORS**: the backend currently allows requests from any origin
-  (`Access-Control-Allow-Origin: *`) so the frontend can call it from a
-  different host/port during development. Tighten this to your actual
-  frontend origin before a public deployment.
+  (`Access-Control-Allow-Origin: *`). Harmless now that frontend and
+  backend are same-origin by default, but tighten this if you ever split
+  them again for a public deployment.
 - **HTTPS is required for the staff dashboard to be safe**: HTTP Basic Auth
   sends the username/password base64-encoded (not encrypted) on every
   request — anyone on the network path can read them over plain HTTP.
@@ -75,9 +81,12 @@ order, and check out; staff track incoming orders on a small dashboard.
 - **`data/orders.json`**: this file accumulates real customer data (name,
   phone, delivery address) once the app is used, so it's gitignored. The
   backend creates it automatically on the first confirmed order if it
-  doesn't already exist — no manual setup needed. For anything beyond
-  light local use, consider moving this to a real database instead of a
-  flat file.
+  doesn't already exist — no manual setup needed. **Many hosting platforms
+  (including Render's free/standard web services) use an ephemeral
+  filesystem** — every redeploy or restart wipes this file, silently
+  losing all order history, unless you've attached a persistent disk. For
+  anything beyond light local use, consider moving this to a real
+  database instead of a flat file.
 - **Secrets**: never commit a real `.env` file (already gitignored).
   `data/orders.json` and `.claude/settings.local.json` are gitignored for
   the same reason — they hold runtime/local data, not shared config.
