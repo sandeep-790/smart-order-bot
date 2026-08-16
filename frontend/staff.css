@@ -33,7 +33,13 @@ body {
   font-size: 18px;
 }
 
-#refreshButton {
+.staff-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+#refreshButton,
+#logoutButton {
   padding: 8px 16px;
   border: none;
   border-radius: 999px;
@@ -43,8 +49,77 @@ body {
   cursor: pointer;
 }
 
-#refreshButton:hover {
+#logoutButton {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+#refreshButton:hover,
+#logoutButton:hover {
   opacity: 0.9;
+}
+
+.login-view {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+/* The `hidden` attribute's UA default (display: none) is overridden by the
+   `display: flex` above unless restated explicitly for the hidden state. */
+.login-view[hidden] {
+  display: none;
+}
+
+.login-form {
+  width: 100%;
+  max-width: 320px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-form h1 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  text-align: center;
+}
+
+.login-form input {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.login-form button {
+  padding: 10px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.login-form button:hover {
+  opacity: 0.9;
+}
+
+.login-error {
+  margin: 0;
+  color: #a02020;
+  font-size: 13px;
+  text-align: center;
 }
 
 .orders-container {

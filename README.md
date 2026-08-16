@@ -26,15 +26,19 @@ order, and check out; staff track incoming orders on a small dashboard.
 - No AI provider is connected yet. `/api/chat` returns a placeholder reply;
   `OPENAI_API_KEY` / `OPENAI_MODEL` in `.env` are reserved for that future
   work and aren't read by any code yet.
-- **The staff dashboard has no authentication.** Anyone who can reach the
-  backend can read and modify order data through it. Add auth before
-  deploying this anywhere reachable by the public.
+- **The staff dashboard is protected by HTTP Basic Auth** (`STAFF_USERNAME`
+  / `STAFF_PASSWORD` in `.env`). The backend fails closed — every
+  `/api/staff/*` request is rejected until both are set. There's no user
+  database or sessions, just one shared username/password, which is
+  appropriate for a small single-location cafe but won't scale to
+  per-employee accounts.
 
 ## Getting started (local development)
 
-1. Copy `.env.example` to `.env` (in the project root) and fill in any
-   values you have. Everything has a working default except `PORT`, which
-   defaults to `3000`.
+1. Copy `.env.example` to `.env` (in the project root) and fill in your
+   values. `PORT` defaults to `3000` if omitted, but `STAFF_USERNAME` and
+   `STAFF_PASSWORD` are required — the staff dashboard won't work without
+   them (the backend logs a warning on startup if they're missing).
 2. Install and run the backend:
    ```bash
    cd backend
@@ -64,6 +68,10 @@ order, and check out; staff track incoming orders on a small dashboard.
   (`Access-Control-Allow-Origin: *`) so the frontend can call it from a
   different host/port during development. Tighten this to your actual
   frontend origin before a public deployment.
+- **HTTPS is required for the staff dashboard to be safe**: HTTP Basic Auth
+  sends the username/password base64-encoded (not encrypted) on every
+  request — anyone on the network path can read them over plain HTTP.
+  Only deploy the backend behind HTTPS.
 - **`data/orders.json`**: this file accumulates real customer data (name,
   phone, delivery address) once the app is used, so it's gitignored. The
   backend creates it automatically on the first confirmed order if it
