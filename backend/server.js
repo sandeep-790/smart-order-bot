@@ -395,6 +395,16 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "present_notes_options",
+      description:
+        "Call this to ask the customer if they'd like any special instructions for the order (e.g. " +
+        "packing separately) — returns tappable choices instead of you asking them to type it.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "compare_items",
       description:
         "Compare two menu items side by side. Both itemIds must be exact — use search_menu_items first " +
@@ -512,6 +522,11 @@ function executeTool(name, args, order, activeSessionId) {
     }
     case "present_quantity_options":
       return { reply: "How many would you like?", quickReplies: ["1", "2", "3", "4"] };
+    case "present_notes_options":
+      return {
+        reply: "Would you like any special instructions for your order?",
+        quickReplies: ["Pack items separately", "No special instructions", "Something else"],
+      };
     case "compare_items": {
       const item1 = MENU.items.find((m) => m.id === args.itemId1);
       const item2 = MENU.items.find((m) => m.id === args.itemId2);
@@ -524,7 +539,11 @@ function executeTool(name, args, order, activeSessionId) {
     case "get_eligible_promotions":
       return { eligiblePromotions: getEligiblePromotions(order) };
     case "present_confirmation_options":
-      return { reply: "Shall I place the order?", quickReplies: ["Yes, confirm", "No, let me change something"] };
+      return {
+        reply: "Shall I place the order?",
+        quickReplies: ["Yes, confirm", "No, let me change something"],
+        isOrderSummary: true,
+      };
     case "confirm_order":
       return confirmOrder(order, args.customerReplyText, activeSessionId);
     default:
@@ -563,6 +582,7 @@ async function runAiTurn(history, message, order, activeSessionId) {
   const conversation = buildMessages(history, message);
   let quickReplies = null;
   let isComparison = false;
+  let isOrderSummary = false;
   let orderJustConfirmed = false;
 
   for (let step = 0; step < MAX_TOOL_CALL_STEPS; step++) {
@@ -601,7 +621,7 @@ async function runAiTurn(history, message, order, activeSessionId) {
     }
 
     if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-      return { reply: assistantMessage.content || "", quickReplies, isComparison, orderJustConfirmed };
+      return { reply: assistantMessage.content || "", quickReplies, isComparison, isOrderSummary, orderJustConfirmed };
     }
 
     conversation.push(assistantMessage);
@@ -618,11 +638,13 @@ async function runAiTurn(history, message, order, activeSessionId) {
 
       // The most recent tool result carrying quickReplies wins — that's
       // the choice actually relevant to what the customer should do next.
-      // isComparison rides along with it so a stale flag from an earlier
-      // tool call in this same turn can't leak into a later, unrelated one.
+      // isComparison/isOrderSummary ride along with it so a stale flag from
+      // an earlier tool call in this same turn can't leak into a later,
+      // unrelated one.
       if (result.quickReplies) {
         quickReplies = result.quickReplies;
         isComparison = Boolean(result.isComparison);
+        isOrderSummary = Boolean(result.isOrderSummary);
       }
       if (result.orderConfirmed) orderJustConfirmed = true;
 
@@ -1606,7 +1628,7 @@ app.post("/api/chat", async (req, res) => {
   const activeSessionId = resolved.sessionId;
   const order = getOrCreateOrder(activeSessionId);
 
-  const { reply, quickReplies, isComparison, orderJustConfirmed } = await runAiTurn(history, message, order, activeSessionId);
+  const { reply, quickReplies, isComparison, isOrderSummary, orderJustConfirmed } = await runAiTurn(history, message, order, activeSessionId);
 
   res.json({
     reply,
@@ -1614,6 +1636,7 @@ app.post("/api/chat", async (req, res) => {
     order,
     quickReplies: quickReplies || null,
     isComparison: Boolean(isComparison),
+    isOrderSummary: Boolean(isOrderSummary),
     orderJustConfirmed: Boolean(orderJustConfirmed),
   });
 });
