@@ -89,7 +89,6 @@ const micButton = document.getElementById("micButton");
 const quickRepliesEl = document.getElementById("quickReplies");
 const orderLockedBanner = document.getElementById("orderLockedBanner");
 const startOverButton = document.getElementById("startOverButton");
-const muteToggleButton = document.getElementById("muteToggleButton");
 
 // --- Text-to-speech (RoboCap speaks its own replies) -----------------------
 // Real neural TTS via the backend's GET /api/tts (proxies to Sarvam AI's
@@ -105,24 +104,52 @@ const MUTE_STORAGE_KEY = "robocapMuted";
 let ttsMuted = localStorage.getItem(MUTE_STORAGE_KEY) === "true";
 const ttsAudio = new Audio();
 
-function updateMuteButtonUi() {
-  muteToggleButton.classList.toggle("muted", ttsMuted);
-  muteToggleButton.setAttribute("aria-pressed", String(ttsMuted));
-  muteToggleButton.setAttribute("aria-label", ttsMuted ? "Unmute RoboCap voice" : "Mute RoboCap voice");
-}
-updateMuteButtonUi();
+// The mute icons formerly lived on a single fixed header button — moved
+// inline so a fresh copy can be attached to whichever bot message is
+// currently the one being spoken.
+const MUTE_ICON_ON =
+  '<svg class="mute-icon-on" viewBox="0 0 24 24" width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<path d="M4 10v4h4l5 4V6L8 10H4Z" fill="currentColor" />' +
+  '<path d="M17 8a5 5 0 0 1 0 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />' +
+  '<path d="M19.5 5.5a9 9 0 0 1 0 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.55" />' +
+  "</svg>";
+const MUTE_ICON_OFF =
+  '<svg class="mute-icon-off" viewBox="0 0 24 24" width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<path d="M4 10v4h4l5 4V6L8 10H4Z" fill="currentColor" />' +
+  '<line x1="16" y1="9" x2="21" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />' +
+  '<line x1="21" y1="9" x2="16" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />' +
+  "</svg>";
 
 function stopSpeaking() {
   ttsAudio.pause();
   ttsAudio.currentTime = 0;
 }
 
-muteToggleButton.addEventListener("click", () => {
-  ttsMuted = !ttsMuted;
-  localStorage.setItem(MUTE_STORAGE_KEY, String(ttsMuted));
-  updateMuteButtonUi();
-  if (ttsMuted) stopSpeaking();
-});
+// Builds the mute/unmute toggle for one specific bot message. Only the
+// latest bot message is ever "under TTS", so appendMessage removes any
+// leftover copy from a previous message before adding this one.
+function buildMessageTtsToggle() {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "message-tts-toggle";
+
+  function updateUi() {
+    button.classList.toggle("muted", ttsMuted);
+    button.setAttribute("aria-pressed", String(ttsMuted));
+    button.setAttribute("aria-label", ttsMuted ? "Unmute RoboCap voice" : "Mute RoboCap voice");
+    button.innerHTML = MUTE_ICON_ON + MUTE_ICON_OFF;
+  }
+  updateUi();
+
+  button.addEventListener("click", () => {
+    ttsMuted = !ttsMuted;
+    localStorage.setItem(MUTE_STORAGE_KEY, String(ttsMuted));
+    updateUi();
+    if (ttsMuted) stopSpeaking();
+  });
+
+  return button;
+}
 
 async function speak(text) {
   if (ttsMuted || !text) return;
@@ -153,7 +180,7 @@ function formatBotText(text) {
   return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 }
 
-function appendMessage(sender, text) {
+function appendMessage(sender, text, options = {}) {
   const row = document.createElement("div");
   row.className = `message-row ${sender}`;
 
@@ -168,15 +195,29 @@ function appendMessage(sender, text) {
   bubble.className = "bubble";
   if (sender === "bot") {
     bubble.innerHTML = formatBotText(text);
-    speak(text);
+    // The final order summary reads out its full item/price/fulfillment
+    // text in the bubble, but speaking all of that is slow and redundant —
+    // options.speakText lets a caller substitute a short spoken line while
+    // the bubble still shows the complete text.
+    speak(options.speakText || text);
   } else {
     bubble.textContent = text;
   }
 
+  const meta = document.createElement("div");
+  meta.className = "bubble-meta";
   const time = document.createElement("span");
   time.className = "message-time";
   time.textContent = formatTime(new Date());
-  bubble.appendChild(time);
+  meta.appendChild(time);
+
+  if (sender === "bot") {
+    // Only the message actually being spoken should show the toggle — drop
+    // it from whichever earlier message still has one.
+    chatArea.querySelector(".message-tts-toggle")?.remove();
+    meta.appendChild(buildMessageTtsToggle());
+  }
+  bubble.appendChild(meta);
 
   row.appendChild(bubble);
   chatArea.appendChild(row);
@@ -321,6 +362,15 @@ function appendReplyOptions(options) {
         appendCartSummary();
         return;
       }
+      // Once checkout starts, View Cart no longer fits the flow — hide any
+      // chip(s) already sitting in the scrollback so they can't be tapped
+      // into after the fact.
+      if (value === "Proceed to checkout") {
+        checkoutStarted = true;
+        chatArea.querySelectorAll(".chat-reply-option").forEach((c) => {
+          if (c.textContent.includes("View Cart")) c.closest(".chat-reply-options").hidden = true;
+        });
+      }
       sendQuickReply(value);
     });
     wrap.appendChild(chip);
@@ -333,6 +383,7 @@ function appendReplyOptions(options) {
 // for the customer to tap and the cart isn't empty — called from every site
 // that would otherwise leave the customer without a clear next step.
 function maybeOfferViewCart() {
+  if (checkoutStarted) return;
   const onChatTab = document.getElementById("tab-chat").classList.contains("active");
   const count = state.order ? state.order.items.reduce((sum, i) => sum + i.quantity, 0) : 0;
   if (onChatTab && count > 0) {
@@ -579,6 +630,11 @@ async function confirmChatItemAdd(item, quantity, wrap, resetToIdle) {
 // Starts empty; the seed bubbles are decorative and not real history.
 const chatHistory = [];
 
+// Once the customer taps "Proceed to checkout", jumping back to View Cart
+// mid-fulfillment doesn't fit the flow — this suppresses the chip from here
+// on until Start Over resets it.
+let checkoutStarted = false;
+
 function lockChatInput(locked) {
   chatInput.disabled = locked;
   sendButton.disabled = locked;
@@ -599,7 +655,9 @@ async function sendChatMessage(text) {
     chatHistory.push({ role: "user", content: text });
     chatHistory.push({ role: "assistant", content: data.reply });
     removeTypingIndicator();
-    appendMessage("bot", data.reply);
+    appendMessage("bot", data.reply, {
+      speakText: data.isOrderSummary ? "Here is your final order summary. Shall I place the order?" : undefined,
+    });
 
     renderQuickReplies(null); // the fixed bottom strip is welcome-starters only now
     const isItemList = Array.isArray(data.quickReplies) && data.quickReplies.length > 0 && typeof data.quickReplies[0] === "object";
@@ -658,6 +716,7 @@ startOverButton.addEventListener("click", () => {
   // A fresh order shouldn't drag the previous order's entire conversation
   // into the AI's context on every future turn.
   chatHistory.length = 0;
+  checkoutStarted = false;
   appendMessage("bot", "Ready when you are — what would you like today?");
   renderQuickReplies(WELCOME_QUICK_REPLIES);
 });
@@ -754,10 +813,22 @@ if (SpeechRecognitionApi) {
       recognition.stop();
       return;
     }
+    // If the text input still has focus (keyboard open), tapping the mic
+    // right away can race with the keyboard-dismiss/blur — on some mobile
+    // browsers that leaves the speech engine in a state where start()
+    // throws InvalidStateError instead of actually starting. Drop focus
+    // first, then guard start() so a throw doesn't leave the button stuck
+    // showing "listening" while nothing is actually happening.
+    chatInput.blur();
     listening = true;
     finalTranscript = "";
     micButton.classList.add("mic-listening");
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (err) {
+      listening = false;
+      micButton.classList.remove("mic-listening");
+    }
   });
 }
 

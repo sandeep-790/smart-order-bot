@@ -104,46 +104,50 @@ body {
 }
 
 .powered-by span {
-  font-size: 10px;
+  font-size: 8px;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 
 .powered-by img {
-  height: 18px;
+  height: 14px;
   width: auto;
   display: block;
 }
 
-.mute-toggle-button {
+/* Per-message mute/unmute toggle — attached only to the bot message
+   currently being spoken (see appendMessage/buildMessageTtsToggle), sized
+   to sit inline next to its timestamp rather than as a standalone header
+   control. */
+.message-tts-toggle {
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  border: none;
+  background: transparent;
   color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  padding: 0;
 }
 
-.mute-toggle-button.muted {
+.message-tts-toggle.muted {
   color: #a02020;
-  border-color: #a02020;
 }
 
-.mute-toggle-button .mute-icon-off {
+.message-tts-toggle .mute-icon-off {
   display: none;
 }
 
-.mute-toggle-button.muted .mute-icon-on {
+.message-tts-toggle.muted .mute-icon-on {
   display: none;
 }
 
-.mute-toggle-button.muted .mute-icon-off {
+.message-tts-toggle.muted .mute-icon-off {
   display: block;
 }
 
@@ -402,9 +406,14 @@ body {
   border-bottom-right-radius: 4px;
 }
 
-.message-time {
-  display: block;
+.bubble-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-top: 4px;
+}
+
+.message-time {
   font-size: 10px;
   opacity: 0.65;
 }
