@@ -362,8 +362,12 @@ body {
   max-width: 100%;
 }
 
+/* The avatar sits above the bubble (not beside it) so bot content — text,
+   item cards, reply chips — can start flush from the chat area's left
+   edge instead of being indented past the avatar. */
 .message-row.bot {
-  justify-content: flex-start;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .message-row.user {
@@ -463,8 +467,13 @@ body {
   flex-shrink: 0;
 }
 
-#chatInput {
+.chat-input-wrap {
+  position: relative;
   flex: 1;
+}
+
+#chatInput {
+  width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -476,6 +485,46 @@ body {
 
 #chatInput:focus {
   border-color: var(--accent);
+}
+
+/* Animated placeholder — cycles through example prompts (see
+   CHAT_INPUT_PLACEHOLDERS in app.js) instead of a single static hint.
+   A real <input placeholder> can't be animated, so this is a decorative
+   overlay: it sits on top of the input but ignores pointer events, and JS
+   hides it as soon as the input has real text so it never covers what the
+   customer typed. */
+.chat-input-placeholder {
+  position: absolute;
+  inset: 0;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.chat-input-placeholder span {
+  display: block;
+  width: 100%;
+  font-size: 16px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform: translateY(0);
+  opacity: 1;
+  transition: transform 0.35s ease, opacity 0.35s ease;
+}
+
+.chat-input-placeholder span.leaving {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.chat-input-placeholder span.entering {
+  transform: translateY(100%);
+  opacity: 0;
 }
 
 #sendButton,
@@ -560,107 +609,28 @@ body {
   50% { opacity: 0.6; }
 }
 
-/* Quick replies — plain chips only (fulfillment, confirm, spice level,
-   quantity, welcome starters). Capped to roughly 4 rows and scrollable so a
-   long list (the 10 welcome starters) never pushes the chat input off
-   screen — short lists just render in fewer rows with no visible scrollbar. */
-.quick-replies {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  align-content: flex-start;
-  gap: 8px;
-  padding: 12px 16px;
-  flex-shrink: 0;
-  max-height: 168px;
-  overflow-y: scroll;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-}
-
-.quick-replies:empty,
-.quick-replies[hidden] {
-  border: none;
-}
-
-/* A thin, always-visible thumb (not the browser's hover-to-reveal default)
-   so a long list like the welcome starters visibly reads as scrollable
-   instead of looking cut off. */
-.quick-replies::-webkit-scrollbar {
-  width: 6px;
-}
-
-.quick-replies::-webkit-scrollbar-thumb {
-  background: var(--accent);
-  border-radius: 3px;
-  opacity: 0.5;
-}
-
-.quick-replies::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* Plain chips read as the customer's own reply options, so they sit on
-   the right like a user bubble and pop off the background with a shadow
-   to set them apart from RoboCap's own message content. */
-.quick-reply-chip {
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--accent);
-  background: var(--surface);
-  color: var(--accent);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
-  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.quick-reply-chip:hover {
-  background: var(--accent);
-  color: #fff;
-  transform: translateY(-1px);
-  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18);
-}
 
 /* Item cards — rendered directly in the chat transcript (appendItemList),
    not the quick-reply strip above, so they scroll naturally with the
-   conversation and previous turns' items stay visible in the scrollback. */
+   conversation and previous turns' items stay visible in the scrollback.
+   Two per row, same portrait card shape as a comparison card (see
+   .chat-compare-card below — both are built by buildChatItemCard). */
 .chat-item-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
-  margin: 0 0 10px 36px;
-  max-width: 88%;
+  margin: 0 0 10px 0;
+  max-width: 100%;
 }
 
-.chat-item-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.chat-item-row-image {
-  flex-shrink: 0;
-  width: 56px;
-  height: 56px;
-  line-height: 0;
-}
-
-.chat-item-row-image svg {
-  display: block;
-  width: 56px;
-  height: 56px;
-}
-
-.chat-item-row-info {
-  flex: 1;
-  min-width: 0;
+/* Real menu photos (menu.json "image" pointing at frontend/assets/menu/*)
+   render as <img> in these small circular slots — Menu-tab rows and
+   recommendation chips are compact list UI, not full item photos, so they
+   keep the circular treatment the emoji icons originally used. */
+.menu-item-icon img,
+.recommendation-icon img {
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .chat-item-row-top {
@@ -825,8 +795,16 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 0 0 10px 36px;
+  margin: 0 0 10px 0;
   max-width: 88%;
+}
+
+/* Welcome starters read as things the customer might say, so they sit on
+   the right like a user bubble instead of under RoboCap's own message. */
+.chat-reply-options--welcome {
+  justify-content: flex-end;
+  align-items: flex-end;
+  margin-left: auto;
 }
 
 .chat-reply-option {
@@ -860,7 +838,7 @@ body {
 /* In-chat cart summary (View Cart chip) — reuses the .review-item-row
    pattern from the Checkout view so item rows look consistent. */
 .chat-cart-summary {
-  margin: 0 0 10px 36px;
+  margin: 0 0 10px 0;
   max-width: 88%;
   padding: 10px 12px;
   background: var(--surface);
@@ -880,12 +858,14 @@ body {
   position: relative;
   display: flex;
   gap: 10px;
-  margin: 0 0 10px 36px;
-  max-width: 88%;
+  margin: 0 0 10px 0;
+  max-width: 100%;
 }
 
+/* Shared portrait card — used both for a comparison pair (two cards + the
+   VS badge, in .chat-compare-wrap) and for plain item lists (N cards in
+   .chat-item-list's 2-column grid) — see buildChatItemCard. */
 .chat-compare-card {
-  flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -895,12 +875,19 @@ body {
   overflow: hidden;
 }
 
+.chat-compare-wrap .chat-compare-card {
+  flex: 1;
+}
+
+/* Full-width rectangular photo banner, not the old circular icon crop —
+   .chat-compare-card's own border-radius + overflow:hidden clips the
+   banner's top corners to match, so no radius is needed here. */
 .chat-compare-card-image {
-  flex: 2;
+  width: 100%;
+  height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 14px 0;
   background: var(--bg);
 }
 
@@ -910,8 +897,14 @@ body {
   height: 64px;
 }
 
+.chat-compare-card-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .chat-compare-card-details {
-  flex: 3;
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -1015,8 +1008,11 @@ body {
   line-height: 0;
 }
 
-.menu-item-icon svg {
+.menu-item-icon svg,
+.menu-item-icon img {
   display: block;
+  width: 40px;
+  height: 40px;
 }
 
 .menu-item-main {
@@ -1278,8 +1274,11 @@ body {
   line-height: 0;
 }
 
-.recommendation-icon svg {
+.recommendation-icon svg,
+.recommendation-icon img {
   display: block;
+  width: 40px;
+  height: 40px;
 }
 
 .recommendation-chip span:nth-child(2) {

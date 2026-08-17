@@ -14,31 +14,25 @@ const API_BASE = "";
 const SESSION_STORAGE_KEY = "cafebotSessionId";
 
 // Static, always-available conversation starters — not AI-generated.
-// Order matters here: chip width varies a lot by label length, and
-// flex-wrap packs greedily in array order (fills the current row, wraps
-// when the next chip doesn't fit — it never backfills an earlier row).
-// This order was chosen by measuring real rendered chip widths and running
-// a bin-packing pass to minimize row count (8 rows -> 7 at a 375px mobile
-// viewport) rather than just listing chips in topic order.
+// Trimmed to the 8 most frequently useful questions (dropped the
+// lower-signal/overlapping ones: "full meal", "chef's picks" — redundant
+// with "recommend something" — and the ₹500 price filter, since ₹200
+// already covers the common budget question).
 // Order matters: flex-wrap packs greedily in this exact array order (fills
 // the current row, wraps only when the next chip doesn't fit — never
-// backfills an earlier row), so this is a measured pairing, not a random
-// list. At these chips' real rendered widths, no triple of chips ever fits
-// one row, so with 11 (odd) chips one lone chip is mathematically
-// unavoidable — this order pairs the other 10 into 5 two-chip rows and
-// pushes the single leftover to the end where it's least disruptive.
+// backfills an earlier row), so this is a measured pairing (real rendered
+// chip widths, bin-packed), not a random list — chosen to land exactly on
+// 4 two-chip rows at a 375px mobile viewport with the container's real
+// right-aligned layout (see .chat-reply-options--welcome).
 const WELCOME_QUICK_REPLIES = [
-  "Show me non-veg options",
-  "🍽️ full meal",
   "👨‍🍳 recommend something",
-  "👨‍🍳 chef's picks",
+  "🥗 Veg options",
   "🔥 What's special today?",
   "🌶️ spicy dishes",
-  "🥗 Show me veg options",
-  "👥 meal for two",
-  "💰 items under ₹500",
-  "💰 items under ₹200",
   "⭐ Show bestsellers",
+  "💰 items under ₹200",
+  "Non-veg options",
+  "👥 meal for two",
 ];
 
 // Small inline icon set for menu item thumbnails — resolved from the
@@ -58,7 +52,14 @@ const MENU_ICONS = {
   nonveg: { emoji: "🍗", bg: "#f3d8d3" },
 };
 
+// menu.json's "image" field is either "icon:xxx" (emoji fallback, below) or
+// a real photo path relative to frontend/assets/ (e.g. "menu/tif-idli.jpg")
+// — real photos render as an <img>, sized/cropped by the same CSS rules
+// that already size the SVG fallback in each call site's container.
 function iconSvg(imageKey) {
+  if (imageKey && !imageKey.startsWith("icon:")) {
+    return `<img src="assets/${imageKey}" alt="" loading="lazy" />`;
+  }
   const key = (imageKey || "").replace(/^icon:/, "");
   const spec = MENU_ICONS[key] || { emoji: "🍽️", bg: "#ece7dd" };
   return (
@@ -84,11 +85,50 @@ const ROBOCAP_AVATAR_SVG =
 const chatArea = document.getElementById("chatArea");
 const chatForm = document.getElementById("chatForm");
 const chatInput = document.getElementById("chatInput");
+const chatInputWrap = document.querySelector(".chat-input-wrap");
+const chatInputPlaceholder = document.querySelector(".chat-input-placeholder");
+const chatInputPlaceholderText = document.getElementById("chatInputPlaceholderText");
 const sendButton = document.getElementById("sendButton");
 const micButton = document.getElementById("micButton");
-const quickRepliesEl = document.getElementById("quickReplies");
 const orderLockedBanner = document.getElementById("orderLockedBanner");
 const startOverButton = document.getElementById("startOverButton");
+
+// Rotates the empty input's decorative placeholder overlay through example
+// prompts, sliding the old phrase out upward and the new one in from below
+// (a real <input placeholder> can't be animated). Hidden as soon as the
+// input has real text so it never covers what the customer typed.
+const CHAT_INPUT_PLACEHOLDERS = [
+  "Type a message...",
+  "Show me today's specials",
+  "What's good for breakfast?",
+  "Recommend something spicy",
+  "Compare masala dosa and idli",
+  "Add 2 filter coffee to my order",
+];
+let chatInputPlaceholderIndex = 0;
+
+// The mic fills chatInput.value directly (not via a real keystroke), which
+// doesn't fire an "input" event — call this anywhere the value changes
+// programmatically so the overlay never sits on top of real text.
+function syncPlaceholderVisibility() {
+  chatInputPlaceholder.hidden = chatInput.value.length > 0;
+}
+
+setInterval(() => {
+  syncPlaceholderVisibility();
+  if (chatInputPlaceholder.hidden) return;
+  chatInputPlaceholderText.classList.add("leaving");
+  setTimeout(() => {
+    chatInputPlaceholderIndex = (chatInputPlaceholderIndex + 1) % CHAT_INPUT_PLACEHOLDERS.length;
+    chatInputPlaceholderText.textContent = CHAT_INPUT_PLACEHOLDERS[chatInputPlaceholderIndex];
+    chatInputPlaceholderText.classList.remove("leaving");
+    chatInputPlaceholderText.classList.add("entering");
+    void chatInputPlaceholderText.offsetWidth; // force reflow so the entry transition actually plays
+    chatInputPlaceholderText.classList.remove("entering");
+  }, 350);
+}, 2000);
+
+chatInput.addEventListener("input", syncPlaceholderVisibility);
 
 // --- Text-to-speech (RoboCap speaks its own replies) -----------------------
 // Real neural TTS via the backend's GET /api/tts (proxies to Sarvam AI's
@@ -249,34 +289,8 @@ function removeTypingIndicator() {
   if (el) el.remove();
 }
 
-// Plain string quick-replies only (fulfillment/confirm/spice-level/
-// quantity/welcome starters). Item cards render directly in the chat
-// transcript instead — see appendItemList — so they scroll naturally with
-// the conversation rather than competing for space in this strip.
-function renderQuickReplies(quickReplies) {
-  quickRepliesEl.innerHTML = "";
-
-  if (!quickReplies || quickReplies.length === 0) {
-    quickRepliesEl.hidden = true;
-    updateCartCount();
-    return;
-  }
-
-  quickRepliesEl.hidden = false;
-  for (const qr of quickReplies) {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "quick-reply-chip";
-    chip.textContent = qr;
-    chip.addEventListener("click", () => sendQuickReply(qr));
-    quickRepliesEl.appendChild(chip);
-  }
-  updateCartCount();
-}
-
 function sendQuickReply(value) {
   appendMessage("user", value);
-  renderQuickReplies(null);
   sendChatMessage(value);
 }
 
@@ -342,18 +356,24 @@ function getReplyOptionIcon(value) {
 }
 
 // Renders plain-text reply options (fulfillment, confirm, spice level,
-// quantity, View Cart, checkout) directly in the chat transcript — like
-// appendItemList, but for simple tappable text choices instead of item
-// cards. Replaces the old bottom #quickReplies strip for everything except
-// the welcome starters, which stay in that fixed strip on purpose.
-function appendReplyOptions(options) {
+// quantity, View Cart, checkout, welcome starters) directly in the chat
+// transcript — like appendItemList, but for simple tappable text choices
+// instead of item cards. skipIcon is for the welcome starters, whose
+// labels already carry their own emoji prefix — adding the usual SVG icon
+// on top of that would double up.
+function appendReplyOptions(options, { skipIcon = false } = {}) {
   const wrap = document.createElement("div");
-  wrap.className = "chat-reply-options";
+  // The welcome starters read as things the customer might say, so they're
+  // right-aligned like a user bubble instead of sitting under RoboCap's
+  // own reply — skipIcon is unique to that context today.
+  wrap.className = skipIcon ? "chat-reply-options chat-reply-options--welcome" : "chat-reply-options";
   for (const value of options) {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "chat-reply-option";
-    chip.innerHTML = `<span class="chat-reply-option-icon">${getReplyOptionIcon(value)}</span><span>${value}</span>`;
+    chip.innerHTML = skipIcon
+      ? `<span>${value}</span>`
+      : `<span class="chat-reply-option-icon">${getReplyOptionIcon(value)}</span><span>${value}</span>`;
     chip.addEventListener("click", () => {
       // "View Cart" shows the cart summary directly — it's not something
       // the AI needs to interpret, so skip the chat pipeline entirely.
@@ -444,42 +464,51 @@ function truncateWords(text, maxWords) {
 // Renders items returned by an item-listing/comparison tool as cards
 // appended directly to the chat transcript — not the quick-reply strip —
 // so previous turns' items stay visible in the scrollback instead of being
-// replaced by the next turn's, and they never crowd the input area.
+// replaced by the next turn's, and they never crowd the input area. Two
+// cards per row (see .chat-item-list's grid), same portrait shape as a
+// comparison card.
 function appendItemList(items) {
   const list = document.createElement("div");
   list.className = "chat-item-list";
   for (const item of items) {
-    list.appendChild(buildChatItemRow(item));
+    list.appendChild(buildChatItemCard(item));
   }
   chatArea.appendChild(list);
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-// Renders exactly two items as a side-by-side "VS" comparison instead of a
-// stacked list — portrait cards (image on top, details below, 2:3 ratio)
-// with a circular VS badge on the seam between them. Reuses the same badge
-// markup and Add control as a normal item row so adding still works.
+// Renders exactly two items as a side-by-side "VS" comparison — the same
+// portrait cards as appendItemList, plus a circular VS badge on the seam
+// between them.
 function appendComparisonCards(items) {
   const wrap = document.createElement("div");
   wrap.className = "chat-compare-wrap";
 
-  wrap.appendChild(buildComparisonCard(items[0]));
+  wrap.appendChild(buildChatItemCard(items[0]));
 
   const vs = document.createElement("span");
   vs.className = "chat-compare-vs";
   vs.textContent = "VS";
   wrap.appendChild(vs);
 
-  wrap.appendChild(buildComparisonCard(items[1]));
+  wrap.appendChild(buildChatItemCard(items[1]));
 
   chatArea.appendChild(wrap);
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-function buildComparisonCard(item) {
+// Shared portrait card — photo on top, details below, Add control at the
+// bottom — used both for plain item lists and for side-by-side comparisons
+// so the two look identical apart from the VS badge.
+function buildChatItemCard(item) {
   const card = document.createElement("div");
   card.className = "chat-compare-card";
 
+  // Every menu item is either non-veg or veg — non-veg is always tagged
+  // explicitly, but veg items are sometimes only tagged "vegan"/
+  // "gluten-free" without the literal "vegetarian" string, so treat
+  // "not tagged non-vegetarian" as the veg signal rather than requiring
+  // an exact "vegetarian" match.
   const badges = [];
   if (item.dietary && item.dietary.includes("non-vegetarian")) {
     badges.push('<span class="badge badge-nonveg">Non-veg</span>');
@@ -505,42 +534,6 @@ function buildComparisonCard(item) {
 
   card.querySelector(".chat-item-row-action").appendChild(buildAddControl(item));
   return card;
-}
-
-function buildChatItemRow(item) {
-  const row = document.createElement("div");
-  row.className = "chat-item-row";
-
-  // Every menu item is either non-veg or veg — non-veg is always tagged
-  // explicitly, but veg items are sometimes only tagged "vegan"/
-  // "gluten-free" without the literal "vegetarian" string, so treat
-  // "not tagged non-vegetarian" as the veg signal rather than requiring
-  // an exact "vegetarian" match.
-  const badges = [];
-  if (item.dietary && item.dietary.includes("non-vegetarian")) {
-    badges.push('<span class="badge badge-nonveg">Non-veg</span>');
-  } else {
-    badges.push('<span class="badge badge-veg">Veg</span>');
-  }
-  if (item.bestseller) badges.push('<span class="badge badge-bestseller">Bestseller</span>');
-  if (item.spicy) badges.push('<span class="badge badge-spicy">🌶️ Spicy</span>');
-  if (item.recommended) badges.push('<span class="badge badge-recommended">Recommended</span>');
-
-  row.innerHTML = `
-    <span class="chat-item-row-image">${iconSvg(item.image)}</span>
-    <div class="chat-item-row-info">
-      <div class="chat-item-row-top">
-        <span class="chat-item-row-name">${item.label}</span>
-        ${item.price != null ? `<span class="chat-item-row-price">₹${Number(item.price).toFixed(0)}</span>` : ""}
-      </div>
-      ${badges.length > 0 ? `<div class="chat-item-row-badges">${badges.join("")}</div>` : ""}
-      ${item.description ? `<p class="chat-item-row-desc">${truncateWords(item.description, 10)}</p>` : ""}
-    </div>
-    <div class="chat-item-row-action"></div>
-  `;
-
-  row.querySelector(".chat-item-row-action").appendChild(buildAddControl(item));
-  return row;
 }
 
 // A per-row Add control: tapping Add reveals a small quantity stepper
@@ -640,6 +633,7 @@ function lockChatInput(locked) {
   sendButton.disabled = locked;
   micButton.disabled = locked;
   chatInput.hidden = locked;
+  chatInputWrap.hidden = locked;
   sendButton.hidden = locked;
   micButton.hidden = locked || !SpeechRecognitionApi;
   orderLockedBanner.hidden = !locked;
@@ -675,7 +669,6 @@ async function sendChatMessage(text) {
         : undefined,
     });
 
-    renderQuickReplies(null); // the fixed bottom strip is welcome-starters only now
     const isItemList = Array.isArray(data.quickReplies) && data.quickReplies.length > 0 && typeof data.quickReplies[0] === "object";
     if (isItemList) {
       if (data.isComparison && data.quickReplies.length === 2) {
@@ -715,7 +708,6 @@ chatForm.addEventListener("submit", (event) => {
 
   appendMessage("user", text);
   chatInput.value = "";
-  renderQuickReplies(null);
   sendChatMessage(text);
 });
 
@@ -735,7 +727,7 @@ startOverButton.addEventListener("click", () => {
   chatHistory.length = 0;
   checkoutStarted = false;
   appendMessage("bot", "Ready when you are — what would you like today?");
-  renderQuickReplies(WELCOME_QUICK_REPLIES);
+  appendReplyOptions(WELCOME_QUICK_REPLIES, { skipIcon: true });
 });
 
 // --- Speech-to-text (mic button) ------------------------------------------
@@ -799,6 +791,7 @@ if (SpeechRecognitionApi) {
       }
     }
     chatInput.value = (finalTranscript + interimTranscript).trim();
+    syncPlaceholderVisibility();
 
     clearTimeout(silenceTimer);
     startSendCountdown();
@@ -1655,8 +1648,7 @@ if (state.sessionId) {
     .catch(() => {});
 }
 
-// Render the seeded conversation + static welcome quick-replies on load.
-// Must come after everything above (state, DOM refs, updateCartCount) is
-// defined, since renderQuickReplies now calls updateCartCount internally.
+// Render the seeded conversation + static welcome quick-replies on load,
+// inline in the transcript like every other reply-option chip.
 appendMessage("bot", "Vanakkam! My name is **RoboCap**! Your virtual Captain. How can I help you today?");
-renderQuickReplies(WELCOME_QUICK_REPLIES);
+appendReplyOptions(WELCOME_QUICK_REPLIES, { skipIcon: true });
