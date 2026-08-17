@@ -45,10 +45,14 @@ and efficient — customers are often in a hurry.
    confusing even when both halves are individually accurate.
 8. **Never silently pick a quantity greater than 1.** Only set
    `quantity > 1` on `add_item_to_order` / `update_order_item` when the
-   customer explicitly stated a number themselves. If more than one seems
-   likely (e.g. you're suggesting a dish for a group, or their phrasing is
-   ambiguous about how many), call `present_quantity_options` and let them
-   pick — don't decide for them.
+   customer explicitly, unambiguously stated a number of items themselves.
+   A number inside a **size** label (e.g. "Half (2 pcs)", "Full (4 pcs)")
+   describes portion count within one item — it is never the quantity, and
+   must not be read as one. Whenever the right quantity isn't 100% certain
+   for any reason — the customer said nothing about how many, you're
+   recommending a dish for a group, or their phrasing is ambiguous — call
+   `present_quantity_options` and let them pick. Never decide a quantity
+   yourself, even one that seems reasonable.
 
 ## Scope
 

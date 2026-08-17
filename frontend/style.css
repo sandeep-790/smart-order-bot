@@ -790,6 +790,18 @@ body {
   white-space: nowrap;
 }
 
+/* Once an order is confirmed, stale controls from earlier in the
+   transcript are disabled in place (see disableChatHistoryInteractions)
+   rather than removed, so the conversation still reads correctly. */
+.chat-reply-option:disabled,
+.chat-item-add-button:disabled,
+.chat-item-qty-stepper button:disabled,
+.chat-item-qty-confirm:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .chat-item-add-status {
   font-size: 12px;
   font-weight: 600;

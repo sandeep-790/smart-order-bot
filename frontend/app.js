@@ -645,6 +645,18 @@ function lockChatInput(locked) {
   orderLockedBanner.hidden = !locked;
 }
 
+// Once an order is confirmed, every quick-reply/Add control still sitting
+// in the scrollback from earlier turns is stale — tapping one would try to
+// act on an order that's already been placed and reset. Disable them in
+// place rather than removing them, so the transcript still reads correctly.
+function disableChatHistoryInteractions() {
+  chatArea
+    .querySelectorAll(".chat-reply-option, .chat-item-add-button, .chat-item-qty-stepper button, .chat-item-qty-confirm")
+    .forEach((el) => {
+      el.disabled = true;
+    });
+}
+
 async function sendChatMessage(text) {
   chatInput.disabled = true;
   sendButton.disabled = true;
@@ -656,7 +668,11 @@ async function sendChatMessage(text) {
     chatHistory.push({ role: "assistant", content: data.reply });
     removeTypingIndicator();
     appendMessage("bot", data.reply, {
-      speakText: data.isOrderSummary ? "Here is your final order summary. Shall I place the order?" : undefined,
+      speakText: data.orderJustConfirmed
+        ? "Your order is confirmed. It will be ready shortly."
+        : data.isOrderSummary
+        ? "Here is your final order summary. Shall I place the order?"
+        : undefined,
     });
 
     renderQuickReplies(null); // the fixed bottom strip is welcome-starters only now
@@ -677,6 +693,7 @@ async function sendChatMessage(text) {
 
     if (data.orderJustConfirmed) {
       lockChatInput(true);
+      disableChatHistoryInteractions();
     }
   } catch (err) {
     removeTypingIndicator();
@@ -735,12 +752,19 @@ if (SpeechRecognitionApi) {
   recognition.lang = "en-IN";
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
-  // Without this, the browser applies its own (often sub-2s) silence
-  // detection and ends the session before our timer below ever fires —
-  // that was the actual cause of "auto-send isn't working". With
-  // continuous on, only our own timer decides when to stop.
-  recognition.continuous = true;
+  // Android's SpeechRecognition (the OS-level engine, not desktop Chrome's)
+  // doesn't support continuous mode properly — it periodically re-emits
+  // already-finalized text as if it were new, which is what causes words to
+  // repeat 2-3x. Desktop Chrome's continuous mode doesn't have this bug, so
+  // only Android gets the one-shot-session-plus-auto-restart workaround
+  // below; everywhere else keeps continuous mode as before.
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  recognition.continuous = !isAndroid;
   let listening = false;
+  // True only when the customer explicitly tapped the mic to stop — tells
+  // the "end" handler not to auto-restart an Android session that's
+  // supposed to actually be over.
+  let manualStop = false;
   let autoSendPending = false;
   let silenceTimer = null;
   // Accumulates only text the engine has already finalized. Re-summing
@@ -785,6 +809,19 @@ if (SpeechRecognitionApi) {
   });
 
   recognition.addEventListener("end", () => {
+    // Android ends each session on its own short internal pause even with
+    // continuous off — restart immediately to keep listening through our
+    // own silence window, unless the customer stopped it themselves or the
+    // silence timer already decided to auto-send.
+    if (isAndroid && listening && !autoSendPending && !manualStop) {
+      try {
+        recognition.start();
+        return;
+      } catch (err) {
+        // Fall through and fully stop below.
+      }
+    }
+
     listening = false;
     micButton.classList.remove("mic-listening");
     clearTimeout(silenceTimer);
@@ -797,9 +834,17 @@ if (SpeechRecognitionApi) {
     // No .focus() here either — same "don't pop the keyboard uninvited" reasoning.
   });
 
-  recognition.addEventListener("error", () => {
+  recognition.addEventListener("error", (event) => {
+    // "no-speech"/"aborted" are routine on Android's short-session model
+    // (e.g. the customer paused before speaking) — recoverable, so let the
+    // "end" event that always follows decide whether to restart instead of
+    // tearing down state here.
+    if (isAndroid && (event.error === "no-speech" || event.error === "aborted")) {
+      return;
+    }
     listening = false;
     autoSendPending = false;
+    manualStop = false;
     clearTimeout(silenceTimer);
     cancelSendCountdown();
     micButton.classList.remove("mic-listening");
@@ -808,6 +853,7 @@ if (SpeechRecognitionApi) {
   micButton.addEventListener("click", () => {
     if (listening) {
       autoSendPending = false;
+      manualStop = true;
       clearTimeout(silenceTimer);
       cancelSendCountdown();
       recognition.stop();
@@ -821,6 +867,7 @@ if (SpeechRecognitionApi) {
     // showing "listening" while nothing is actually happening.
     chatInput.blur();
     listening = true;
+    manualStop = false;
     finalTranscript = "";
     micButton.classList.add("mic-listening");
     try {
