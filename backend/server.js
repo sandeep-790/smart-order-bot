@@ -43,14 +43,37 @@ if (!AI_API_KEY) {
 // is never exposed to the browser. Without SARVAM_API_KEY set, /api/tts
 // fails closed with a clear error instead of crashing.
 const SARVAM_API_KEY = process.env.SARVAM_API_KEY || "";
-const SARVAM_TTS_SPEAKER = process.env.SARVAM_TTS_SPEAKER || "shubh";
+// Sarvam's speaker names are case-sensitive lowercase (e.g. "ritu", not
+// "Ritu") — normalize so a differently-cased value in .env fails softly
+// instead of 400ing every request.
+const SARVAM_TTS_SPEAKER = (process.env.SARVAM_TTS_SPEAKER || "shubh").toLowerCase();
 const SARVAM_TTS_MODEL = process.env.SARVAM_TTS_MODEL || "bulbul:v3";
-const SARVAM_TTS_MAX_CHARS = 2500; // Sarvam's own limit for bulbul:v3 on the REST API
+const SARVAM_TTS_MAX_CHARS = 3500; // Sarvam's own limit for bulbul:v3 on the streaming API
 if (!SARVAM_API_KEY) {
   console.warn(
     "Warning: SARVAM_API_KEY is not set in .env — /api/tts will return an " +
     "error and the frontend will just stay silent instead of speaking replies."
   );
+}
+
+// The chat bubble's text is written for reading (markdown, parentheses,
+// abbreviations like "pcs"), not for a voice to read aloud — e.g. "Idli
+// (4 pcs)" should be spoken as "Idli, 4 pieces", not read literally
+// symbol-by-symbol. Runs server-side so there's one definition, not one
+// per caller.
+function normalizeTextForSpeech(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1") // strip markdown bold
+    .replace(/^\s*[*-]\s+/gm, "") // strip leading "* "/"- " bullet markers
+    .replace(/₹\s?(\d+(?:\.\d+)?)/g, "$1 rupees") // ₹80 -> "80 rupees"
+    .replace(/\(/g, ", ") // parenthetical asides read as a natural spoken pause
+    .replace(/\)/g, "")
+    .replace(/\bpcs\b\.?/gi, "pieces")
+    .replace(/\bpc\b\.?/gi, "piece")
+    .replace(/,\s*,/g, ",") // collapse doubled commas left by nested parens
+    .replace(/\s+,/g, ",") // drop the stray space the "(" -> ", " swap leaves before it
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // Staff dashboard credentials — required to access /api/staff/*. Set these
@@ -1585,8 +1608,14 @@ app.post("/api/chat", async (req, res) => {
 // Proxied server-side so the API key never reaches the browser. Never
 // throws for a missing key/upstream failure — the frontend just skips
 // playback silently, since voice is a nice-to-have on top of the chat.
-app.post("/api/tts", async (req, res) => {
-  const { text } = req.body || {};
+// GET (not POST) so the frontend can point an <audio> element's src
+// straight at this route — that's what lets the browser start playing
+// before the whole clip has arrived, instead of waiting to buffer a
+// complete blob. Uses Sarvam's streaming endpoint and pipes the response
+// through chunk by chunk as it arrives, rather than buffering it here
+// either, so no hop in the chain adds a "wait for the whole file" delay.
+app.get("/api/tts", async (req, res) => {
+  const { text } = req.query;
 
   if (typeof text !== "string" || text.trim().length === 0) {
     return res.status(400).json({ error: "text is required and must be a non-empty string." });
@@ -1597,36 +1626,43 @@ app.post("/api/tts", async (req, res) => {
   }
 
   try {
-    const sarvamRes = await fetch("https://api.sarvam.ai/text-to-speech", {
+    const sarvamRes = await fetch("https://api.sarvam.ai/text-to-speech/stream", {
       method: "POST",
       headers: {
         "api-subscription-key": SARVAM_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        text: text.slice(0, SARVAM_TTS_MAX_CHARS),
+        text: normalizeTextForSpeech(text.slice(0, SARVAM_TTS_MAX_CHARS)),
         language_code: "en-IN",
         speaker: SARVAM_TTS_SPEAKER,
         model: SARVAM_TTS_MODEL,
+        output_audio_codec: "mp3",
+        enable_preprocessing: true,
       }),
     });
 
-    if (!sarvamRes.ok) {
+    if (!sarvamRes.ok || !sarvamRes.body) {
       const bodyText = await sarvamRes.text().catch(() => "");
-      throw new Error(`Sarvam TTS request failed (${sarvamRes.status}): ${bodyText.slice(0, 300)}`);
+      throw new Error(`Sarvam TTS stream request failed (${sarvamRes.status}): ${bodyText.slice(0, 300)}`);
     }
 
-    const data = await sarvamRes.json();
-    const audioBase64 = data.audios && data.audios[0];
-    if (!audioBase64) {
-      throw new Error("Sarvam TTS response had no audio.");
+    res.set("Content-Type", "audio/mpeg");
+    const reader = sarvamRes.body.getReader();
+    req.on("close", () => reader.cancel().catch(() => {})); // stop upstream if the client navigates away/interrupts
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      res.write(value);
     }
-
-    res.set("Content-Type", "audio/wav");
-    res.send(Buffer.from(audioBase64, "base64"));
+    res.end();
   } catch (err) {
     console.error("TTS error:", err.message);
-    res.status(502).json({ error: "Text-to-speech is temporarily unavailable." });
+    if (!res.headersSent) {
+      res.status(502).json({ error: "Text-to-speech is temporarily unavailable." });
+    } else {
+      res.end();
+    }
   }
 });
 
