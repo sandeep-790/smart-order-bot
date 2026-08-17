@@ -5,7 +5,7 @@
       "name": "Idli",
       "category": "Tiffins",
       "description": "Steamed rice and urad dal cakes, served with sambar and chutney.",
-      "image": "icon:idli",
+      "image": "menu/tif-idli.jpg",
       "sizes": [
         {
           "name": "Half (2 pcs)",
@@ -52,7 +52,7 @@
       "name": "Medu Vada",
       "category": "Tiffins",
       "description": "Crispy fried lentil doughnuts, served with sambar and chutney.",
-      "image": "icon:vada",
+      "image": "menu/tif-meduvada.jpg",
       "sizes": [
         {
           "name": "Half (2 pcs)",
@@ -96,7 +96,7 @@
       "name": "Rava Idli",
       "category": "Tiffins",
       "description": "Soft steamed semolina cakes with mustard seeds and curry leaves.",
-      "image": "icon:idli",
+      "image": "menu/tif-ravaidli.jpg",
       "sizes": [
         {
           "name": "Regular (4 pcs)",
@@ -119,7 +119,7 @@
       "name": "Sambar Vada",
       "category": "Tiffins",
       "description": "Medu vada soaked in hot, tangy sambar.",
-      "image": "icon:vada",
+      "image": "menu/tif-sambarvada.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -168,14 +168,15 @@
       "dietary": [
         "vegetarian"
       ],
-      "available": true
+      "available": true,
+      "image": "menu/tif-ponggal.jpg"
     },
     {
       "id": "tif-ravaupma",
       "name": "Rava Upma",
       "category": "Tiffins",
       "description": "Savory semolina porridge with mustard seeds, curry leaves, and vegetables.",
-      "image": "icon:idli",
+      "image": "menu/tif-ravaupma.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -199,7 +200,7 @@
       "name": "Semiya Upma",
       "category": "Tiffins",
       "description": "Savory vermicelli tossed with mustard seeds, curry leaves, and peanuts.",
-      "image": "icon:idli",
+      "image": "menu/tif-semiyaupma.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -220,7 +221,7 @@
       "name": "Idiyappam",
       "category": "Tiffins",
       "description": "Steamed rice noodle cakes, best with coconut milk or curry.",
-      "image": "icon:idli",
+      "image": "menu/tif-idiyappam.jpg",
       "sizes": [
         {
           "name": "Half (3 pcs)",
@@ -247,7 +248,7 @@
       "name": "Appam with Stew",
       "category": "Tiffins",
       "description": "Lacy rice-and-coconut crepes served with a mild vegetable stew.",
-      "image": "icon:idli",
+      "image": "menu/tif-appam.jpg",
       "sizes": [
         {
           "name": "Regular (2 pcs)",
@@ -280,14 +281,15 @@
         "vegetarian"
       ],
       "available": true,
-      "spicy": true
+      "spicy": true,
+      "image": "menu/tif-poorimasala.jpg"
     },
     {
       "id": "dosa-plain",
       "name": "Plain Dosa",
       "category": "Dosa Varieties",
       "description": "Classic thin, crispy rice-and-lentil crepe.",
-      "image": "icon:dosa",
+      "image": "menu/dosa-plain.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -328,7 +330,7 @@
       "name": "Masala Dosa",
       "category": "Dosa Varieties",
       "description": "Crispy dosa filled with spiced potato masala.",
-      "image": "icon:dosa",
+      "image": "menu/dosa-masala.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -351,7 +353,7 @@
       "name": "Onion Dosa",
       "category": "Dosa Varieties",
       "description": "Crispy dosa topped with finely chopped onions.",
-      "image": "icon:dosa",
+      "image": "menu/dosa-onion.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -395,14 +397,15 @@
       "dietary": [
         "vegetarian"
       ],
-      "available": true
+      "available": true,
+      "image": "menu/dosa-onionmasala.jpg"
     },
     {
       "id": "dosa-rava",
       "name": "Rava Dosa",
       "category": "Dosa Varieties",
       "description": "Lacy, crispy semolina crepe.",
-      "image": "icon:dosa",
+      "image": "menu/dosa-rava.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -423,7 +426,7 @@
       "name": "Rava Masala Dosa",
       "category": "Dosa Varieties",
       "description": "Lacy semolina crepe filled with spiced potato masala.",
-      "image": "icon:dosa",
+      "image": "menu/dosa-ravamasala.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -458,7 +461,7 @@
       "name": "Mysore Masala Dosa",
       "category": "Dosa Varieties",
       "description": "Dosa spread with spicy red chutney, filled with potato masala.",
-      "image": "icon:dosa",
+      "image": "menu/dosa-mysoremasala.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -479,7 +482,7 @@
       "name": "Ghee Roast Dosa",
       "category": "Dosa Varieties",
       "description": "Extra crispy dosa roasted generously in ghee.",
-      "image": "icon:dosa",
+      "image": "menu/dosa-gheeroast.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -513,14 +516,15 @@
       "dietary": [
         "vegetarian"
       ],
-      "available": false
+      "available": false,
+      "image": "menu/dosa-paneer.jpg"
     },
     {
       "id": "dosa-cheese",
       "name": "Cheese Dosa",
       "category": "Dosa Varieties",
       "description": "Crispy dosa loaded with melted cheese.",
-      "image": "icon:dosa",
+      "image": "menu/dosa-cheese.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -555,7 +559,7 @@
       "name": "Podi Dosa",
       "category": "Dosa Varieties",
       "description": "Dosa spread with spicy, nutty gunpowder podi and a dollop of ghee.",
-      "image": "icon:dosa",
+      "image": "menu/dosa-podi.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -577,7 +581,7 @@
       "name": "Set Dosa",
       "category": "Dosa Varieties",
       "description": "Three soft, spongy mini dosas served with chutney and sambar.",
-      "image": "icon:dosa",
+      "image": "menu/dosa-set.jpg",
       "sizes": [
         {
           "name": "Regular (3 pcs)",
@@ -596,7 +600,7 @@
       "name": "Egg Dosa",
       "category": "Dosa Varieties",
       "description": "Crispy dosa topped with a spiced egg spread, cooked right in.",
-      "image": "icon:nonveg",
+      "image": "menu/dosa-egg.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -641,7 +645,7 @@
       "name": "Sambar Rice",
       "category": "Rice & Meals",
       "description": "Steamed rice mixed with lentil-and-vegetable sambar.",
-      "image": "icon:rice",
+      "image": "menu/rice-sambar.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -660,7 +664,7 @@
       "name": "Curd Rice",
       "category": "Rice & Meals",
       "description": "Cooling rice mixed with fresh curd, tempered with mustard seeds and curry leaves.",
-      "image": "icon:rice",
+      "image": "menu/rice-curd.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -694,14 +698,15 @@
       "dietary": [
         "vegan"
       ],
-      "available": true
+      "available": true,
+      "image": "menu/rice-lemon.jpg"
     },
     {
       "id": "rice-puliyodarai",
       "name": "Tamarind Rice (Puliyodarai)",
       "category": "Rice & Meals",
       "description": "Rice mixed with a tangy, spiced tamarind paste.",
-      "image": "icon:rice",
+      "image": "menu/rice-puliyodarai.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -720,7 +725,7 @@
       "name": "Bisi Bele Bath",
       "category": "Rice & Meals",
       "description": "Spiced rice, lentils, and vegetables cooked together, Karnataka style.",
-      "image": "icon:rice",
+      "image": "menu/rice-biselebele.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -756,7 +761,7 @@
       "name": "Vegetable Biryani",
       "category": "Rice & Meals",
       "description": "Fragrant basmati rice layered with spiced mixed vegetables.",
-      "image": "icon:biryani",
+      "image": "menu/rice-biryani.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -797,8 +802,8 @@
       "id": "rice-thali",
       "name": "South Indian Thali (Meals)",
       "category": "Rice & Meals",
-      "description": "Rice, sambar, rasam, poriyal, papad, curd, and a sweet \u2014 full meal on a plate.",
-      "image": "icon:rice",
+      "description": "Rice, sambar, rasam, poriyal, papad, curd, and a sweet — full meal on a plate.",
+      "image": "menu/rice-thali.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -838,7 +843,7 @@
       "name": "Rasam Rice",
       "category": "Rice & Meals",
       "description": "Steamed rice mixed with peppery, tangy tamarind rasam.",
-      "image": "icon:rice",
+      "image": "menu/rice-rasam.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -869,14 +874,15 @@
       "dietary": [
         "vegan"
       ],
-      "available": true
+      "available": true,
+      "image": "menu/rice-tomato.jpg"
     },
     {
       "id": "rice-coconut",
       "name": "Coconut Rice",
       "category": "Rice & Meals",
       "description": "Rice tossed with fresh grated coconut, mustard seeds, and curry leaves.",
-      "image": "icon:rice",
+      "image": "menu/rice-coconut.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -895,7 +901,7 @@
       "name": "Chicken Biryani",
       "category": "Rice & Meals",
       "description": "Fragrant basmati rice layered with spiced, slow-cooked chicken.",
-      "image": "icon:biryani",
+      "image": "menu/nv-chickenbiryani.jpg",
       "sizes": [
         {
           "name": "Half",
@@ -943,7 +949,7 @@
       "name": "Chicken Chettinad",
       "category": "Rice & Meals",
       "description": "Spicy, aromatic Chettinad-style chicken curry, best with rice or parotta.",
-      "image": "icon:nonveg",
+      "image": "menu/nv-chettinad.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -964,7 +970,7 @@
       "name": "Egg Curry",
       "category": "Rice & Meals",
       "description": "Boiled eggs simmered in a spiced onion-tomato gravy.",
-      "image": "icon:nonveg",
+      "image": "menu/nv-eggcurry.jpg",
       "sizes": [
         {
           "name": "Regular (2 eggs)",
@@ -1014,14 +1020,15 @@
         "non-vegetarian"
       ],
       "available": true,
-      "spicy": true
+      "spicy": true,
+      "image": "menu/nv-kothuparotta.jpg"
     },
     {
       "id": "snk-onionbonda",
       "name": "Onion Bonda",
       "category": "Snacks & Starters",
       "description": "Deep-fried gram flour fritters with spiced onion filling.",
-      "image": "icon:snack",
+      "image": "menu/snk-onionbonda.jpg",
       "sizes": [
         {
           "name": "Regular (4 pcs)",
@@ -1041,7 +1048,7 @@
       "name": "Mysore Bonda",
       "category": "Snacks & Starters",
       "description": "Soft, fluffy deep-fried flour dumplings.",
-      "image": "icon:snack",
+      "image": "menu/snk-mysorebonda.jpg",
       "sizes": [
         {
           "name": "Regular (4 pcs)",
@@ -1074,14 +1081,15 @@
         "vegan",
         "gluten-free"
       ],
-      "available": true
+      "available": true,
+      "image": "menu/snk-mixedbajji.jpg"
     },
     {
       "id": "snk-bananabajji",
       "name": "Banana Bajji",
       "category": "Snacks & Starters",
       "description": "Raw banana slices dipped in gram flour batter and deep-fried.",
-      "image": "icon:snack",
+      "image": "menu/snk-bananabajji.jpg",
       "sizes": [
         {
           "name": "Regular (4 pcs)",
@@ -1101,7 +1109,7 @@
       "name": "Samosa",
       "category": "Snacks & Starters",
       "description": "Crispy pastry filled with spiced potatoes and peas.",
-      "image": "icon:snack",
+      "image": "menu/snk-samosa.jpg",
       "sizes": [
         {
           "name": "Regular (2 pcs)",
@@ -1137,7 +1145,7 @@
       "name": "Masala Vada",
       "category": "Snacks & Starters",
       "description": "Crunchy fried lentil patties with onions and curry leaves.",
-      "image": "icon:snack",
+      "image": "menu/snk-masalavada.jpg",
       "sizes": [
         {
           "name": "Regular (4 pcs)",
@@ -1157,7 +1165,7 @@
       "name": "Dahi Vada",
       "category": "Snacks & Starters",
       "description": "Lentil fritters soaked in cool, spiced yogurt.",
-      "image": "icon:snack",
+      "image": "menu/snk-dahivada.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -1219,14 +1227,15 @@
       "dietary": [
         "vegetarian"
       ],
-      "available": true
+      "available": true,
+      "image": "menu/snk-cutlet.jpg"
     },
     {
       "id": "snk-murukku",
       "name": "Murukku Plate",
       "category": "Snacks & Starters",
       "description": "Crunchy, spiral-shaped rice and lentil flour snack.",
-      "image": "icon:snack",
+      "image": "menu/snk-murukku.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -1246,7 +1255,7 @@
       "name": "Aloo Bonda",
       "category": "Snacks & Starters",
       "description": "Deep-fried gram flour fritters with spiced potato filling.",
-      "image": "icon:snack",
+      "image": "menu/snk-aloobonda.jpg",
       "sizes": [
         {
           "name": "Regular (4 pcs)",
@@ -1266,7 +1275,7 @@
       "name": "Chicken 65",
       "category": "Snacks & Starters",
       "description": "Spicy, deep-fried boneless chicken bites, South Indian style.",
-      "image": "icon:nonveg",
+      "image": "menu/nv-chicken65.jpg",
       "sizes": [
         {
           "name": "Regular (8 pcs)",
@@ -1308,7 +1317,7 @@
       "name": "Fish Fry (Meen Varuval)",
       "category": "Snacks & Starters",
       "description": "Pan-fried fish marinated in a spiced masala.",
-      "image": "icon:nonveg",
+      "image": "menu/nv-fishfry.jpg",
       "sizes": [
         {
           "name": "Regular (2 pcs)",
@@ -1330,7 +1339,7 @@
       "name": "Mutton Kola Urundai",
       "category": "Snacks & Starters",
       "description": "Deep-fried spiced minced mutton meatballs.",
-      "image": "icon:nonveg",
+      "image": "menu/nv-muttonkola.jpg",
       "sizes": [
         {
           "name": "Regular (5 pcs)",
@@ -1350,7 +1359,7 @@
       "name": "Filter Coffee",
       "category": "South Indian Beverages",
       "description": "Strong, frothy South Indian filter coffee with milk.",
-      "image": "icon:filtercoffee",
+      "image": "menu/bev-filtercoffee.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -1397,7 +1406,7 @@
       "name": "Masala Chai",
       "category": "South Indian Beverages",
       "description": "Spiced tea brewed with milk, ginger, and cardamom.",
-      "image": "icon:tea",
+      "image": "menu/bev-masalachai.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -1433,14 +1442,15 @@
       "dietary": [
         "vegetarian"
       ],
-      "available": true
+      "available": true,
+      "image": "menu/bev-buttermilk.jpg"
     },
     {
       "id": "bev-tendercoconut",
       "name": "Tender Coconut Water",
       "category": "South Indian Beverages",
       "description": "Fresh, naturally sweet tender coconut water.",
-      "image": "icon:coolbeverage",
+      "image": "menu/bev-tendercoconut.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -1460,7 +1470,7 @@
       "name": "Badam Milk",
       "category": "South Indian Beverages",
       "description": "Chilled milk flavored with almonds, saffron, and cardamom.",
-      "image": "icon:coolbeverage",
+      "image": "menu/bev-badammilk.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -1482,7 +1492,7 @@
       "name": "Rose Milk",
       "category": "South Indian Beverages",
       "description": "Chilled milk flavored with rose syrup.",
-      "image": "icon:coolbeverage",
+      "image": "menu/bev-rosemilk.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -1503,7 +1513,7 @@
       "name": "Sukku Coffee",
       "category": "South Indian Beverages",
       "description": "Traditional dry ginger and spice decoction, served without milk.",
-      "image": "icon:filtercoffee",
+      "image": "menu/bev-sukkucoffee.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -1523,7 +1533,7 @@
       "name": "Lemon Juice",
       "category": "South Indian Beverages",
       "description": "Freshly squeezed lemon juice, sweet or salted.",
-      "image": "icon:coolbeverage",
+      "image": "menu/bev-lemonjuice.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -1559,14 +1569,15 @@
       "dietary": [
         "vegetarian"
       ],
-      "available": true
+      "available": true,
+      "image": "menu/bev-mangolassi.jpg"
     },
     {
       "id": "bev-gingertea",
       "name": "Ginger Tea",
       "category": "South Indian Beverages",
       "description": "Classic milk tea brewed with fresh ginger.",
-      "image": "icon:tea",
+      "image": "menu/bev-gingertea.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -1607,7 +1618,7 @@
       "name": "Payasam (Semiya)",
       "category": "Desserts & Sweets",
       "description": "Sweet vermicelli pudding cooked in milk with cashews and raisins.",
-      "image": "icon:dessert",
+      "image": "menu/des-semiyapayasam.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -1630,7 +1641,7 @@
       "name": "Rava Kesari",
       "category": "Desserts & Sweets",
       "description": "Sweet semolina halwa flavored with saffron and ghee.",
-      "image": "icon:dessert",
+      "image": "menu/des-ravakesari.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -1667,14 +1678,15 @@
         "vegetarian",
         "gluten-free"
       ],
-      "available": true
+      "available": true,
+      "image": "menu/des-mysorepak.jpg"
     },
     {
       "id": "des-gulabjamun",
       "name": "Gulab Jamun",
       "category": "Desserts & Sweets",
       "description": "Soft milk-solid dumplings soaked in cardamom sugar syrup.",
-      "image": "icon:dessert",
+      "image": "menu/des-gulabjamun.jpg",
       "sizes": [
         {
           "name": "Regular (2 pcs)",
@@ -1711,7 +1723,7 @@
       "name": "Ada Pradhaman",
       "category": "Desserts & Sweets",
       "description": "Kerala-style rice flakes simmered in jaggery and coconut milk.",
-      "image": "icon:dessert",
+      "image": "menu/des-adapradhaman.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -1730,7 +1742,7 @@
       "name": "Rasgulla",
       "category": "Desserts & Sweets",
       "description": "Soft, spongy cottage cheese balls in light sugar syrup.",
-      "image": "icon:dessert",
+      "image": "menu/des-rasgulla.jpg",
       "sizes": [
         {
           "name": "Regular (2 pcs)",
@@ -1751,7 +1763,7 @@
       "name": "Carrot Halwa (Gajar Halwa)",
       "category": "Desserts & Sweets",
       "description": "Grated carrots slow-cooked in milk, ghee, and sugar.",
-      "image": "icon:dessert",
+      "image": "menu/des-carrothalwa.jpg",
       "sizes": [
         {
           "name": "Regular",
@@ -1789,14 +1801,15 @@
         "vegetarian",
         "gluten-free"
       ],
-      "available": true
+      "available": true,
+      "image": "menu/des-badamhalwa.jpg"
     },
     {
       "id": "des-coconutladoo",
       "name": "Coconut Ladoo",
       "category": "Desserts & Sweets",
       "description": "Sweet, bite-sized balls of grated coconut and condensed milk.",
-      "image": "icon:dessert",
+      "image": "menu/des-coconutladoo.jpg",
       "sizes": [
         {
           "name": "Regular (2 pcs)",
@@ -1816,7 +1829,7 @@
       "name": "Jangiri",
       "category": "Desserts & Sweets",
       "description": "Crispy, spiral-shaped urad dal sweet soaked in saffron syrup.",
-      "image": "icon:dessert",
+      "image": "menu/des-jangiri.jpg",
       "sizes": [
         {
           "name": "Regular (2 pcs)",
