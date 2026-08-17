@@ -20,18 +20,25 @@ const SESSION_STORAGE_KEY = "cafebotSessionId";
 // This order was chosen by measuring real rendered chip widths and running
 // a bin-packing pass to minimize row count (8 rows -> 7 at a 375px mobile
 // viewport) rather than just listing chips in topic order.
+// Order matters: flex-wrap packs greedily in this exact array order (fills
+// the current row, wraps only when the next chip doesn't fit — never
+// backfills an earlier row), so this is a measured pairing, not a random
+// list. At these chips' real rendered widths, no triple of chips ever fits
+// one row, so with 11 (odd) chips one lone chip is mathematically
+// unavoidable — this order pairs the other 10 into 5 two-chip rows and
+// pushes the single leftover to the end where it's least disruptive.
 const WELCOME_QUICK_REPLIES = [
-  "👥 Suggest something for two",
-  "🌶️ spicy dishes",
-  "🍽️ Suggest a complete meal",
-  "👨‍🍳 chef's recommendations",
   "Show me non-veg options",
-  "💰 items under ₹200",
+  "🍽️ full meal",
   "👨‍🍳 recommend something",
-  "💰 items under ₹500",
+  "👨‍🍳 chef's picks",
   "🔥 What's special today?",
-  "⭐ Show bestsellers",
+  "🌶️ spicy dishes",
   "🥗 Show me veg options",
+  "👥 meal for two",
+  "💰 items under ₹500",
+  "💰 items under ₹200",
+  "⭐ Show bestsellers",
 ];
 
 // Small inline icon set for menu item thumbnails — resolved from the
@@ -232,6 +239,151 @@ function sendQuickReply(value) {
   sendChatMessage(value);
 }
 
+// Small inline icon set for in-chat reply options (fulfillment, confirm,
+// spice level, quantity, View Cart, checkout) — matched by pattern against
+// the option's own text so it stays correct even if the AI phrases things
+// slightly differently, with a generic fallback so an unrecognized option
+// never breaks instead of just rendering label-only.
+const REPLY_ICON_PICKUP =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<path d="M6 8h12l-1 12H7L6 8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M9 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="2"/></svg>';
+const REPLY_ICON_DELIVERY =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<rect x="3" y="9" width="11" height="8" rx="1" stroke="currentColor" stroke-width="2"/>' +
+  '<path d="M14 12h4l3 3v2h-2" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<circle cx="7" cy="19" r="1.6" fill="currentColor"/><circle cx="17" cy="19" r="1.6" fill="currentColor"/></svg>';
+const REPLY_ICON_DINEIN =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/>' +
+  '<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/></svg>';
+const REPLY_ICON_CONFIRM =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>' +
+  '<path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const REPLY_ICON_EDIT =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<path d="M4 20l1-4L16 5l3 3L8 19l-4 1Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+const REPLY_ICON_CHILI =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<path d="M14 3c2 1 2 3 1 4-3 3-8 8-8 12a3 3 0 0 0 5 2c4-4 8-9 8-12 0-2-1-4-3-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '<path d="M13 3c1-1 3-1 4 1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const REPLY_ICON_QUANTITY =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<rect x="4" y="4" width="16" height="16" rx="4" stroke="currentColor" stroke-width="2"/>' +
+  '<path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const REPLY_ICON_CART =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<circle cx="9" cy="21" r="1.4" fill="currentColor"/><circle cx="18" cy="21" r="1.4" fill="currentColor"/>' +
+  '<path d="M2.5 3h2l2.2 12.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 8H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const REPLY_ICON_CHECKOUT =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const REPLY_ICON_DEFAULT =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<path d="M4 5h16v10H8l-4 4V5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+
+const REPLY_ICON_RULES = [
+  [/pickup/i, REPLY_ICON_PICKUP],
+  [/delivery/i, REPLY_ICON_DELIVERY],
+  [/dine.?in/i, REPLY_ICON_DINEIN],
+  [/^yes\b|confirm/i, REPLY_ICON_CONFIRM],
+  [/^no\b|change something/i, REPLY_ICON_EDIT],
+  [/mild|medium|spicy/i, REPLY_ICON_CHILI],
+  [/^\d+$/, REPLY_ICON_QUANTITY],
+  [/view cart/i, REPLY_ICON_CART],
+  [/checkout/i, REPLY_ICON_CHECKOUT],
+];
+
+function getReplyOptionIcon(value) {
+  const rule = REPLY_ICON_RULES.find(([pattern]) => pattern.test(value));
+  return rule ? rule[1] : REPLY_ICON_DEFAULT;
+}
+
+// Renders plain-text reply options (fulfillment, confirm, spice level,
+// quantity, View Cart, checkout) directly in the chat transcript — like
+// appendItemList, but for simple tappable text choices instead of item
+// cards. Replaces the old bottom #quickReplies strip for everything except
+// the welcome starters, which stay in that fixed strip on purpose.
+function appendReplyOptions(options) {
+  const wrap = document.createElement("div");
+  wrap.className = "chat-reply-options";
+  for (const value of options) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chat-reply-option";
+    chip.innerHTML = `<span class="chat-reply-option-icon">${getReplyOptionIcon(value)}</span><span>${value}</span>`;
+    chip.addEventListener("click", () => {
+      // "View Cart" shows the cart summary directly — it's not something
+      // the AI needs to interpret, so skip the chat pipeline entirely.
+      if (value === "View Cart") {
+        appendMessage("user", value);
+        appendCartSummary();
+        return;
+      }
+      sendQuickReply(value);
+    });
+    wrap.appendChild(chip);
+  }
+  chatArea.appendChild(wrap);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+// Offers a "View Cart" chip in-chat whenever a turn ends with nothing else
+// for the customer to tap and the cart isn't empty — called from every site
+// that would otherwise leave the customer without a clear next step.
+function maybeOfferViewCart() {
+  const onChatTab = document.getElementById("tab-chat").classList.contains("active");
+  const count = state.order ? state.order.items.reduce((sum, i) => sum + i.quantity, 0) : 0;
+  if (onChatTab && count > 0) {
+    appendReplyOptions(["View Cart"]);
+  }
+}
+
+// Renders the current cart as an in-chat summary block (reusing the same
+// row markup as the Checkout view's renderReview) so tapping "View Cart"
+// keeps the customer on the chat tab instead of jumping to a separate view.
+async function appendCartSummary() {
+  const block = document.createElement("div");
+  block.className = "chat-cart-summary";
+  block.innerHTML = '<span class="chat-item-add-status">Loading cart…</span>';
+  chatArea.appendChild(block);
+  chatArea.scrollTop = chatArea.scrollHeight;
+
+  try {
+    const data = await apiGet("/api/order/review");
+    const review = data.review;
+    const itemRows = review.items
+      .map((item) => {
+        const addOnNames = (item.addOns || []).map((a) => a.name);
+        const details = [item.size, ...item.options, ...addOnNames].filter(Boolean).join(" · ");
+        return `
+          <div class="review-item-row">
+            <div class="review-item-main">
+              ${item.quantity}x ${item.name}
+              ${details ? `<span class="review-item-detail">${details}</span>` : ""}
+              ${item.notes ? `<span class="review-item-detail">Note: ${item.notes}</span>` : ""}
+            </div>
+            <div class="review-item-price">${formatMoney(item.lineTotal)}</div>
+          </div>
+        `;
+      })
+      .join("");
+
+    block.innerHTML = `
+      <div class="review-items">${itemRows || '<p class="empty-state">No items yet.</p>'}</div>
+      <p class="chat-cart-summary-total">Total: ${formatMoney(review.pricing.total)}</p>
+    `;
+    chatArea.scrollTop = chatArea.scrollHeight;
+
+    if (review.items.length > 0) {
+      appendReplyOptions(["Proceed to checkout"]);
+    }
+  } catch (err) {
+    block.innerHTML = `<span class="chat-item-add-status chat-item-add-status--error">${escapeHtml(err.message)}</span>`;
+  }
+}
+
 function truncateWords(text, maxWords) {
   const words = (text || "").trim().split(/\s+/).filter(Boolean);
   if (words.length <= maxWords) return text || "";
@@ -250,6 +402,58 @@ function appendItemList(items) {
   }
   chatArea.appendChild(list);
   chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+// Renders exactly two items as a side-by-side "VS" comparison instead of a
+// stacked list — portrait cards (image on top, details below, 2:3 ratio)
+// with a circular VS badge on the seam between them. Reuses the same badge
+// markup and Add control as a normal item row so adding still works.
+function appendComparisonCards(items) {
+  const wrap = document.createElement("div");
+  wrap.className = "chat-compare-wrap";
+
+  wrap.appendChild(buildComparisonCard(items[0]));
+
+  const vs = document.createElement("span");
+  vs.className = "chat-compare-vs";
+  vs.textContent = "VS";
+  wrap.appendChild(vs);
+
+  wrap.appendChild(buildComparisonCard(items[1]));
+
+  chatArea.appendChild(wrap);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function buildComparisonCard(item) {
+  const card = document.createElement("div");
+  card.className = "chat-compare-card";
+
+  const badges = [];
+  if (item.dietary && item.dietary.includes("non-vegetarian")) {
+    badges.push('<span class="badge badge-nonveg">Non-veg</span>');
+  } else {
+    badges.push('<span class="badge badge-veg">Veg</span>');
+  }
+  if (item.bestseller) badges.push('<span class="badge badge-bestseller">Bestseller</span>');
+  if (item.spicy) badges.push('<span class="badge badge-spicy">🌶️ Spicy</span>');
+  if (item.recommended) badges.push('<span class="badge badge-recommended">Recommended</span>');
+
+  card.innerHTML = `
+    <div class="chat-compare-card-image">${iconSvg(item.image)}</div>
+    <div class="chat-compare-card-details">
+      <div class="chat-item-row-top">
+        <span class="chat-item-row-name">${item.label}</span>
+        ${item.price != null ? `<span class="chat-item-row-price">₹${Number(item.price).toFixed(0)}</span>` : ""}
+      </div>
+      ${badges.length > 0 ? `<div class="chat-item-row-badges">${badges.join("")}</div>` : ""}
+      ${item.description ? `<p class="chat-item-row-desc">${truncateWords(item.description, 10)}</p>` : ""}
+      <div class="chat-item-row-action"></div>
+    </div>
+  `;
+
+  card.querySelector(".chat-item-row-action").appendChild(buildAddControl(item));
+  return card;
 }
 
 function buildChatItemRow(item) {
@@ -363,6 +567,7 @@ async function confirmChatItemAdd(item, quantity, wrap, resetToIdle) {
     const summary = `Added **${item.label}** to your cart. Would you like anything else, or are you ready to proceed with fulfillment?`;
     appendMessage("bot", summary);
     chatHistory.push({ role: "assistant", content: summary });
+    maybeOfferViewCart();
     setTimeout(resetToIdle, 1800);
   } catch (err) {
     wrap.innerHTML = `<span class="chat-item-add-status chat-item-add-status--error">${escapeHtml(err.message)}</span>`;
@@ -396,12 +601,18 @@ async function sendChatMessage(text) {
     removeTypingIndicator();
     appendMessage("bot", data.reply);
 
+    renderQuickReplies(null); // the fixed bottom strip is welcome-starters only now
     const isItemList = Array.isArray(data.quickReplies) && data.quickReplies.length > 0 && typeof data.quickReplies[0] === "object";
     if (isItemList) {
-      renderQuickReplies(null);
-      appendItemList(data.quickReplies);
+      if (data.isComparison && data.quickReplies.length === 2) {
+        appendComparisonCards(data.quickReplies);
+      } else {
+        appendItemList(data.quickReplies);
+      }
+    } else if (Array.isArray(data.quickReplies) && data.quickReplies.length > 0) {
+      appendReplyOptions(data.quickReplies);
     } else {
-      renderQuickReplies(data.quickReplies);
+      maybeOfferViewCart();
     }
     // Tool calls this turn may have changed the order — reflect it everywhere.
     updateCartCount();
@@ -647,13 +858,12 @@ floatingCartButton.addEventListener("click", () => {
 function updateCartCount() {
   const count = state.order ? state.order.items.reduce((sum, i) => sum + i.quantity, 0) : 0;
   floatingCartCount.textContent = String(count);
-  const onMainTab = mainTabNames.some((t) => document.getElementById(`tab-${t}`).classList.contains("active"));
-  // On the chat tab, quick-reply chips sit right above the input bar in the
-  // same spot the floating pill occupies — showing both overlaps and blocks
-  // taps, so give quick-replies priority while they're visible.
-  const chatQuickRepliesShowing =
-    document.getElementById("tab-chat").classList.contains("active") && !quickRepliesEl.hidden;
-  floatingCartButton.hidden = count === 0 || !onMainTab || chatQuickRepliesShowing;
+  // The floating pill is a Menu/Orders-only affordance now — on the chat
+  // tab, "View Cart" is a chat-native reply option instead (see
+  // maybeOfferViewCart/appendReplyOptions) so it stays part of the
+  // conversation rather than jumping to the separate Cart view.
+  const onFloatingCartTab = ["menu", "orders"].some((t) => document.getElementById(`tab-${t}`).classList.contains("active"));
+  floatingCartButton.hidden = count === 0 || !onFloatingCartTab;
 
   // The floating pill is position:absolute and sits on top of the chat
   // transcript — pad the scroll area so the last message can still scroll

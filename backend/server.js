@@ -519,7 +519,7 @@ function executeTool(name, args, order, activeSessionId) {
         const missing = [!item1 ? args.itemId1 : null, !item2 ? args.itemId2 : null].filter(Boolean);
         return { error: `Item id(s) not found: ${missing.join(", ")}. Use search_menu_items to find the correct id.` };
       }
-      return { items: [item1, item2], quickReplies: buildItemQuickReplies([item1, item2]) };
+      return { items: [item1, item2], quickReplies: buildItemQuickReplies([item1, item2]), isComparison: true };
     }
     case "get_eligible_promotions":
       return { eligiblePromotions: getEligiblePromotions(order) };
@@ -562,6 +562,7 @@ async function runAiTurn(history, message, order, activeSessionId) {
 
   const conversation = buildMessages(history, message);
   let quickReplies = null;
+  let isComparison = false;
   let orderJustConfirmed = false;
 
   for (let step = 0; step < MAX_TOOL_CALL_STEPS; step++) {
@@ -600,7 +601,7 @@ async function runAiTurn(history, message, order, activeSessionId) {
     }
 
     if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-      return { reply: assistantMessage.content || "", quickReplies, orderJustConfirmed };
+      return { reply: assistantMessage.content || "", quickReplies, isComparison, orderJustConfirmed };
     }
 
     conversation.push(assistantMessage);
@@ -617,7 +618,12 @@ async function runAiTurn(history, message, order, activeSessionId) {
 
       // The most recent tool result carrying quickReplies wins — that's
       // the choice actually relevant to what the customer should do next.
-      if (result.quickReplies) quickReplies = result.quickReplies;
+      // isComparison rides along with it so a stale flag from an earlier
+      // tool call in this same turn can't leak into a later, unrelated one.
+      if (result.quickReplies) {
+        quickReplies = result.quickReplies;
+        isComparison = Boolean(result.isComparison);
+      }
       if (result.orderConfirmed) orderJustConfirmed = true;
 
       conversation.push({
@@ -1600,9 +1606,16 @@ app.post("/api/chat", async (req, res) => {
   const activeSessionId = resolved.sessionId;
   const order = getOrCreateOrder(activeSessionId);
 
-  const { reply, quickReplies, orderJustConfirmed } = await runAiTurn(history, message, order, activeSessionId);
+  const { reply, quickReplies, isComparison, orderJustConfirmed } = await runAiTurn(history, message, order, activeSessionId);
 
-  res.json({ reply, sessionId: activeSessionId, order, quickReplies: quickReplies || null, orderJustConfirmed: Boolean(orderJustConfirmed) });
+  res.json({
+    reply,
+    sessionId: activeSessionId,
+    order,
+    quickReplies: quickReplies || null,
+    isComparison: Boolean(isComparison),
+    orderJustConfirmed: Boolean(orderJustConfirmed),
+  });
 });
 
 // Speaks a chat reply via Sarvam AI's TTS API and streams the audio back.
