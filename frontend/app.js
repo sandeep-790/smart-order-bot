@@ -85,14 +85,18 @@ const startOverButton = document.getElementById("startOverButton");
 const muteToggleButton = document.getElementById("muteToggleButton");
 
 // --- Text-to-speech (RoboCap speaks its own replies) -----------------------
-// Real neural TTS via the backend's POST /api/tts (proxies to Sarvam AI's
+// Real neural TTS via the backend's GET /api/tts (proxies to Sarvam AI's
 // Bulbul model server-side, so the API key never reaches the browser) —
 // sounds noticeably more human than the browser's built-in speechSynthesis.
-// One reusable <audio> element, reused for every reply.
+// Pointing <audio src> straight at the streaming route (rather than
+// fetch()-ing a blob and waiting for the whole clip) is what makes
+// playback start quickly — the browser begins playing as audio arrives
+// instead of waiting for the full response. One reusable <audio> element;
+// reassigning its src is enough to abort whatever was still loading/playing,
+// so no manual request-token bookkeeping is needed.
 const MUTE_STORAGE_KEY = "robocapMuted";
 let ttsMuted = localStorage.getItem(MUTE_STORAGE_KEY) === "true";
 const ttsAudio = new Audio();
-let ttsRequestToken = 0; // ignores a slow response that resolves after a newer speak() call
 
 function updateMuteButtonUi() {
   muteToggleButton.classList.toggle("muted", ttsMuted);
@@ -102,7 +106,6 @@ function updateMuteButtonUi() {
 updateMuteButtonUi();
 
 function stopSpeaking() {
-  ttsRequestToken += 1; // any in-flight fetch for the old audio is now stale
   ttsAudio.pause();
   ttsAudio.currentTime = 0;
 }
@@ -117,23 +120,12 @@ muteToggleButton.addEventListener("click", () => {
 async function speak(text) {
   if (ttsMuted || !text) return;
   stopSpeaking(); // a fast-arriving reply should never talk over the previous one
-  const token = ttsRequestToken;
-
+  ttsAudio.src = `${API_BASE}/api/tts?text=${encodeURIComponent(text)}`;
   try {
-    const res = await fetch(`${API_BASE}/api/tts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: text.replace(/\*\*(.+?)\*\*/g, "$1") }),
-    });
-    if (!res.ok) return; // not configured, rate-limited, etc. — voice is optional, fail silent
-    const blob = await res.blob();
-
-    if (token !== ttsRequestToken || ttsMuted) return; // superseded or muted while we were fetching
-    ttsAudio.src = URL.createObjectURL(blob);
-    await ttsAudio.play().catch(() => {}); // browser may block autoplay before any user gesture
+    await ttsAudio.play();
   } catch (err) {
-    // Voice is a nice-to-have layered on top of the chat — never surface a
-    // TTS failure to the customer.
+    // Autoplay can be blocked before any user gesture, and the request can
+    // fail (not configured, rate-limited) — voice is optional, fail silent.
   }
 }
 
