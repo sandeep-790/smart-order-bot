@@ -38,6 +38,21 @@ if (!AI_API_KEY) {
   );
 }
 
+// Text-to-speech for RoboCap's chat replies — Sarvam AI's Bulbul model
+// (natural Indian-English voices). Called server-side only so the API key
+// is never exposed to the browser. Without SARVAM_API_KEY set, /api/tts
+// fails closed with a clear error instead of crashing.
+const SARVAM_API_KEY = process.env.SARVAM_API_KEY || "";
+const SARVAM_TTS_SPEAKER = process.env.SARVAM_TTS_SPEAKER || "shubh";
+const SARVAM_TTS_MODEL = process.env.SARVAM_TTS_MODEL || "bulbul:v3";
+const SARVAM_TTS_MAX_CHARS = 2500; // Sarvam's own limit for bulbul:v3 on the REST API
+if (!SARVAM_API_KEY) {
+  console.warn(
+    "Warning: SARVAM_API_KEY is not set in .env — /api/tts will return an " +
+    "error and the frontend will just stay silent instead of speaking replies."
+  );
+}
+
 // Staff dashboard credentials — required to access /api/staff/*. Set these
 // in .env; there is no default, so auth fails closed if unconfigured.
 const STAFF_USERNAME = process.env.STAFF_USERNAME || "";
@@ -1564,6 +1579,55 @@ app.post("/api/chat", async (req, res) => {
   const { reply, quickReplies, orderJustConfirmed } = await runAiTurn(history, message, order, activeSessionId);
 
   res.json({ reply, sessionId: activeSessionId, order, quickReplies: quickReplies || null, orderJustConfirmed: Boolean(orderJustConfirmed) });
+});
+
+// Speaks a chat reply via Sarvam AI's TTS API and streams the audio back.
+// Proxied server-side so the API key never reaches the browser. Never
+// throws for a missing key/upstream failure — the frontend just skips
+// playback silently, since voice is a nice-to-have on top of the chat.
+app.post("/api/tts", async (req, res) => {
+  const { text } = req.body || {};
+
+  if (typeof text !== "string" || text.trim().length === 0) {
+    return res.status(400).json({ error: "text is required and must be a non-empty string." });
+  }
+
+  if (!SARVAM_API_KEY) {
+    return res.status(503).json({ error: "Text-to-speech isn't configured on this server — set SARVAM_API_KEY in .env." });
+  }
+
+  try {
+    const sarvamRes = await fetch("https://api.sarvam.ai/text-to-speech", {
+      method: "POST",
+      headers: {
+        "api-subscription-key": SARVAM_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text: text.slice(0, SARVAM_TTS_MAX_CHARS),
+        language_code: "en-IN",
+        speaker: SARVAM_TTS_SPEAKER,
+        model: SARVAM_TTS_MODEL,
+      }),
+    });
+
+    if (!sarvamRes.ok) {
+      const bodyText = await sarvamRes.text().catch(() => "");
+      throw new Error(`Sarvam TTS request failed (${sarvamRes.status}): ${bodyText.slice(0, 300)}`);
+    }
+
+    const data = await sarvamRes.json();
+    const audioBase64 = data.audios && data.audios[0];
+    if (!audioBase64) {
+      throw new Error("Sarvam TTS response had no audio.");
+    }
+
+    res.set("Content-Type", "audio/wav");
+    res.send(Buffer.from(audioBase64, "base64"));
+  } catch (err) {
+    console.error("TTS error:", err.message);
+    res.status(502).json({ error: "Text-to-speech is temporarily unavailable." });
+  }
 });
 
 // Returns the full menu so the frontend can render it. Read-only.
