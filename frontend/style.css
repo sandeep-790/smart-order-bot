@@ -796,6 +796,130 @@ body {
   color: #a02020;
 }
 
+/* In-chat reply options (fulfillment, confirm, spice level, quantity, View
+   Cart, checkout) — rendered in the transcript via appendReplyOptions,
+   replacing the old bottom quick-reply strip for everything except the
+   welcome starters. */
+.chat-reply-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 10px 36px;
+  max-width: 88%;
+}
+
+.chat-reply-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.chat-reply-option:hover {
+  background: var(--accent);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18);
+}
+
+.chat-reply-option-icon {
+  display: flex;
+  line-height: 0;
+}
+
+/* In-chat cart summary (View Cart chip) — reuses the .review-item-row
+   pattern from the Checkout view so item rows look consistent. */
+.chat-cart-summary {
+  margin: 0 0 10px 36px;
+  max-width: 88%;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.chat-cart-summary-total {
+  margin: 6px 0 0;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* Side-by-side "VS" comparison — two portrait cards (image on top, details
+   below, roughly a 2:3 split) with a circular VS badge on their seam. */
+.chat-compare-wrap {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  margin: 0 0 10px 36px;
+  max-width: 88%;
+}
+
+.chat-compare-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.chat-compare-card-image {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 0;
+  background: var(--bg);
+}
+
+.chat-compare-card-image svg {
+  display: block;
+  width: 64px;
+  height: 64px;
+}
+
+.chat-compare-card-details {
+  flex: 3;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-compare-card-details .chat-item-row-action {
+  margin-top: 8px;
+}
+
+.chat-compare-vs {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
 /* Order locked banner */
 .order-locked-banner {
   display: flex;
