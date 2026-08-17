@@ -15,16 +15,17 @@ const SESSION_STORAGE_KEY = "cafebotSessionId";
 
 // Static, always-available conversation starters — not AI-generated.
 const WELCOME_QUICK_REPLIES = [
-  "⭐ Show me your bestsellers",
-  "👨‍🍳 What do you recommend?",
+  "⭐ Show bestsellers",
+  "👨‍🍳 recommend something",
   "🔥 What's special today?",
-  "🥗 Show me vegetarian options",
-  "🍗 Show me non-vegetarian options",
-  "🌶️ Show me spicy dishes",
-  "👨‍🍳 Show me chef's recommendations",
+  "🥗 Show me veg options",
+  "Show me non-veg options",
+  "🌶️ spicy dishes",
+  "👨‍🍳 chef's recommendations",
   "👥 Suggest something for two",
   "🍽️ Suggest a complete meal",
-  "💰 Show me items under ₹200",
+  "💰 items under ₹200",
+  "💰 items under ₹500",
 ];
 
 // Small inline icon set for menu item thumbnails — resolved from the
@@ -75,6 +76,51 @@ const micButton = document.getElementById("micButton");
 const quickRepliesEl = document.getElementById("quickReplies");
 const orderLockedBanner = document.getElementById("orderLockedBanner");
 const startOverButton = document.getElementById("startOverButton");
+const muteToggleButton = document.getElementById("muteToggleButton");
+
+// --- Text-to-speech (RoboCap speaks its own replies) -----------------------
+// Browser-native speechSynthesis — no server involved, no new dependency,
+// same philosophy as the mic's SpeechRecognition. Prefers an Indian-English
+// voice when the browser/OS has one installed; falls back to whatever
+// default voice is available otherwise (not every device ships one).
+const MUTE_STORAGE_KEY = "robocapMuted";
+let ttsMuted = localStorage.getItem(MUTE_STORAGE_KEY) === "true";
+let preferredVoice = null;
+
+function pickPreferredVoice() {
+  if (!window.speechSynthesis) return;
+  const voices = speechSynthesis.getVoices();
+  preferredVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("en-in")) || null;
+}
+
+if (window.speechSynthesis) {
+  pickPreferredVoice();
+  speechSynthesis.addEventListener("voiceschanged", pickPreferredVoice);
+}
+
+function updateMuteButtonUi() {
+  muteToggleButton.classList.toggle("muted", ttsMuted);
+  muteToggleButton.setAttribute("aria-pressed", String(ttsMuted));
+  muteToggleButton.setAttribute("aria-label", ttsMuted ? "Unmute RoboCap voice" : "Mute RoboCap voice");
+}
+updateMuteButtonUi();
+
+muteToggleButton.addEventListener("click", () => {
+  ttsMuted = !ttsMuted;
+  localStorage.setItem(MUTE_STORAGE_KEY, String(ttsMuted));
+  updateMuteButtonUi();
+  if (ttsMuted && window.speechSynthesis) speechSynthesis.cancel();
+});
+
+function speak(text) {
+  if (ttsMuted || !window.speechSynthesis || !text) return;
+  // Cancel first so a fast-arriving reply never talks over the previous one.
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text.replace(/\*\*(.+?)\*\*/g, "$1"));
+  utterance.lang = "en-IN";
+  if (preferredVoice) utterance.voice = preferredVoice;
+  speechSynthesis.speak(utterance);
+}
 
 function formatTime(date) {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -108,6 +154,7 @@ function appendMessage(sender, text) {
   bubble.className = "bubble";
   if (sender === "bot") {
     bubble.innerHTML = formatBotText(text);
+    speak(text);
   } else {
     bubble.textContent = text;
   }
@@ -147,17 +194,12 @@ function removeTypingIndicator() {
   if (el) el.remove();
 }
 
-// Rich item cards ({label, value, image, price, itemId}) selected but not
-// yet added — keyed by itemId (or value, for older card shapes without one).
-let selectedQuickReplyItems = new Map();
-
-// Renders quick-reply chips (plain strings) or rich item cards. Plain chips
-// still send their text through the chat pipeline on tap. Rich item cards
-// are multi-select: tapping toggles selection, and an "Add N to cart" bar
-// appears once at least one is picked.
+// Plain string quick-replies only (fulfillment/confirm/spice-level/
+// quantity/welcome starters). Item cards render directly in the chat
+// transcript instead — see appendItemList — so they scroll naturally with
+// the conversation rather than competing for space in this strip.
 function renderQuickReplies(quickReplies) {
   quickRepliesEl.innerHTML = "";
-  selectedQuickReplyItems = new Map();
 
   if (!quickReplies || quickReplies.length === 0) {
     quickRepliesEl.hidden = true;
@@ -166,122 +208,155 @@ function renderQuickReplies(quickReplies) {
   }
 
   quickRepliesEl.hidden = false;
-  const isRich = typeof quickReplies[0] === "object";
-
-  if (!isRich) {
-    for (const qr of quickReplies) {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "quick-reply-chip";
-      chip.textContent = qr;
-      chip.addEventListener("click", () => sendQuickReply(qr));
-      quickRepliesEl.appendChild(chip);
-    }
-    updateCartCount();
-    return;
-  }
-
-  const cardsWrap = document.createElement("div");
-  cardsWrap.className = "quick-reply-cards";
   for (const qr of quickReplies) {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "quick-reply-card";
-    card.innerHTML = `
-      <span class="quick-reply-card-check" aria-hidden="true"></span>
-      <span class="quick-reply-card-icon">${iconSvg(qr.image)}</span>
-      <span class="quick-reply-card-label">${qr.label}</span>
-      ${qr.price != null ? `<span class="quick-reply-card-price">₹${Number(qr.price).toFixed(0)}</span>` : ""}
-    `;
-    card.addEventListener("click", () => toggleQuickReplyCard(card, qr));
-    cardsWrap.appendChild(card);
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "quick-reply-chip";
+    chip.textContent = qr;
+    chip.addEventListener("click", () => sendQuickReply(qr));
+    quickRepliesEl.appendChild(chip);
   }
-  quickRepliesEl.appendChild(cardsWrap);
-
-  const addBar = document.createElement("button");
-  addBar.type = "button";
-  addBar.className = "quick-reply-add-bar";
-  addBar.hidden = true;
-  addBar.addEventListener("click", addSelectedQuickReplyItems);
-  quickRepliesEl.appendChild(addBar);
-
   updateCartCount();
-}
-
-function toggleQuickReplyCard(card, qr) {
-  const key = qr.itemId || qr.value;
-  if (selectedQuickReplyItems.has(key)) {
-    selectedQuickReplyItems.delete(key);
-    card.classList.remove("selected");
-  } else {
-    selectedQuickReplyItems.set(key, qr);
-    card.classList.add("selected");
-  }
-
-  const addBar = quickRepliesEl.querySelector(".quick-reply-add-bar");
-  const count = selectedQuickReplyItems.size;
-  addBar.hidden = count === 0;
-  addBar.textContent = count === 1 ? "Add 1 item to cart" : `Add ${count} items to cart`;
-}
-
-// Adds every selected card directly via the REST endpoint (no AI round-trip
-// needed for a simple, unambiguous item). Anything that comes back needing
-// a size/add-on choice falls back to the normal chat pipeline so the AI can
-// ask the clarifying question conversationally, same as a typed request.
-async function addSelectedQuickReplyItems() {
-  const picks = [...selectedQuickReplyItems.values()];
-  if (picks.length === 0) return;
-
-  const addBar = quickRepliesEl.querySelector(".quick-reply-add-bar");
-  if (addBar) {
-    addBar.disabled = true;
-    addBar.textContent = "Adding...";
-  }
-
-  const added = [];
-  const needsChat = [];
-
-  for (const qr of picks) {
-    if (!qr.itemId) {
-      needsChat.push(qr);
-      continue;
-    }
-    try {
-      const data = await apiSend("POST", "/api/order/items", { itemId: qr.itemId });
-      if (data.needsClarification) {
-        needsChat.push(qr);
-      } else {
-        added.push(qr.label);
-      }
-    } catch (err) {
-      needsChat.push(qr);
-    }
-  }
-
-  renderQuickReplies(null);
-
-  if (added.length > 0) {
-    const summary = `Added ${added.map((name) => `**${name}**`).join(", ")} to your cart.`;
-    appendMessage("bot", summary);
-    chatHistory.push({ role: "assistant", content: summary });
-  }
-
-  if (needsChat.length > 0) {
-    // Show one bubble per item up front so the customer sees everything
-    // they picked, even though RoboCap can only ask about one item's
-    // missing size/add-on choice at a time in its replies.
-    for (const qr of needsChat) {
-      appendMessage("user", qr.value);
-    }
-    const combinedText = needsChat.map((qr) => qr.value).join(" and ");
-    sendChatMessage(combinedText);
-  }
 }
 
 function sendQuickReply(value) {
   appendMessage("user", value);
   renderQuickReplies(null);
   sendChatMessage(value);
+}
+
+function truncateWords(text, maxWords) {
+  const words = (text || "").trim().split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return text || "";
+  return `${words.slice(0, maxWords).join(" ")}…`;
+}
+
+// Renders items returned by an item-listing/comparison tool as cards
+// appended directly to the chat transcript — not the quick-reply strip —
+// so previous turns' items stay visible in the scrollback instead of being
+// replaced by the next turn's, and they never crowd the input area.
+function appendItemList(items) {
+  const list = document.createElement("div");
+  list.className = "chat-item-list";
+  for (const item of items) {
+    list.appendChild(buildChatItemRow(item));
+  }
+  chatArea.appendChild(list);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function buildChatItemRow(item) {
+  const row = document.createElement("div");
+  row.className = "chat-item-row";
+
+  // Every menu item is either non-veg or veg — non-veg is always tagged
+  // explicitly, but veg items are sometimes only tagged "vegan"/
+  // "gluten-free" without the literal "vegetarian" string, so treat
+  // "not tagged non-vegetarian" as the veg signal rather than requiring
+  // an exact "vegetarian" match.
+  const badges = [];
+  if (item.dietary && item.dietary.includes("non-vegetarian")) {
+    badges.push('<span class="badge badge-nonveg">Non-veg</span>');
+  } else {
+    badges.push('<span class="badge badge-veg">Veg</span>');
+  }
+  if (item.bestseller) badges.push('<span class="badge badge-bestseller">Bestseller</span>');
+  if (item.spicy) badges.push('<span class="badge badge-spicy">🌶️ Spicy</span>');
+  if (item.recommended) badges.push('<span class="badge badge-recommended">Recommended</span>');
+
+  row.innerHTML = `
+    <span class="chat-item-row-image">${iconSvg(item.image)}</span>
+    <div class="chat-item-row-info">
+      <div class="chat-item-row-top">
+        <span class="chat-item-row-name">${item.label}</span>
+        ${item.price != null ? `<span class="chat-item-row-price">₹${Number(item.price).toFixed(0)}</span>` : ""}
+      </div>
+      ${badges.length > 0 ? `<div class="chat-item-row-badges">${badges.join("")}</div>` : ""}
+      ${item.description ? `<p class="chat-item-row-desc">${truncateWords(item.description, 10)}</p>` : ""}
+    </div>
+    <div class="chat-item-row-action"></div>
+  `;
+
+  row.querySelector(".chat-item-row-action").appendChild(buildAddControl(item));
+  return row;
+}
+
+// A per-row Add control: tapping Add reveals a small quantity stepper
+// in place of the button — confirming it adds directly via REST with that
+// quantity (no AI round-trip for a simple, unambiguous item). An item that
+// needs a size/add-on choice falls back to the chat pipeline so the AI can
+// ask conversationally, same as a typed request.
+function buildAddControl(item) {
+  const wrap = document.createElement("div");
+  wrap.className = "chat-item-add";
+
+  function renderIdle() {
+    wrap.innerHTML = "";
+    const addButton = document.createElement("button");
+    addButton.type = "button";
+    addButton.className = "chat-item-add-button";
+    addButton.textContent = "Add";
+    addButton.addEventListener("click", renderStepper);
+    wrap.appendChild(addButton);
+  }
+
+  function renderStepper() {
+    let qty = 1;
+    wrap.innerHTML = "";
+
+    const stepper = document.createElement("div");
+    stepper.className = "chat-item-qty-stepper";
+
+    const minus = document.createElement("button");
+    minus.type = "button";
+    minus.textContent = "−";
+    const qtyLabel = document.createElement("span");
+    qtyLabel.textContent = String(qty);
+    const plus = document.createElement("button");
+    plus.type = "button";
+    plus.textContent = "+";
+    const confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.className = "chat-item-qty-confirm";
+    confirm.setAttribute("aria-label", "Confirm quantity and add");
+    confirm.textContent = "✓";
+
+    minus.addEventListener("click", () => {
+      if (qty > 1) qtyLabel.textContent = String((qty -= 1));
+    });
+    plus.addEventListener("click", () => {
+      if (qty < 10) qtyLabel.textContent = String((qty += 1));
+    });
+    confirm.addEventListener("click", () => confirmChatItemAdd(item, qty, wrap, renderIdle));
+
+    stepper.append(minus, qtyLabel, plus, confirm);
+    wrap.appendChild(stepper);
+  }
+
+  renderIdle();
+  return wrap;
+}
+
+async function confirmChatItemAdd(item, quantity, wrap, resetToIdle) {
+  wrap.innerHTML = '<span class="chat-item-add-status">Adding…</span>';
+  try {
+    const data = await apiSend("POST", "/api/order/items", { itemId: item.itemId, quantity });
+    if (data.needsClarification) {
+      resetToIdle();
+      appendMessage("user", item.value);
+      sendChatMessage(item.value);
+      return;
+    }
+    wrap.innerHTML = '<span class="chat-item-add-status chat-item-add-status--success">Added ✓</span>';
+    updateCartCount();
+    const summary = `Added **${item.label}** to your cart. Would you like anything else, or are you ready to proceed with fulfillment?`;
+    appendMessage("bot", summary);
+    chatHistory.push({ role: "assistant", content: summary });
+    setTimeout(resetToIdle, 1800);
+  } catch (err) {
+    wrap.innerHTML = `<span class="chat-item-add-status chat-item-add-status--error">${escapeHtml(err.message)}</span>`;
+    setTimeout(resetToIdle, 1800);
+  }
 }
 
 // Conversation sent to the AI as context — {role: "user"|"assistant", content}.
@@ -309,7 +384,14 @@ async function sendChatMessage(text) {
     chatHistory.push({ role: "assistant", content: data.reply });
     removeTypingIndicator();
     appendMessage("bot", data.reply);
-    renderQuickReplies(data.quickReplies);
+
+    const isItemList = Array.isArray(data.quickReplies) && data.quickReplies.length > 0 && typeof data.quickReplies[0] === "object";
+    if (isItemList) {
+      renderQuickReplies(null);
+      appendItemList(data.quickReplies);
+    } else {
+      renderQuickReplies(data.quickReplies);
+    }
     // Tool calls this turn may have changed the order — reflect it everywhere.
     updateCartCount();
 

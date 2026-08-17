@@ -116,6 +116,37 @@ body {
   display: block;
 }
 
+.mute-toggle-button {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.mute-toggle-button.muted {
+  color: #a02020;
+  border-color: #a02020;
+}
+
+.mute-toggle-button .mute-icon-off {
+  display: none;
+}
+
+.mute-toggle-button.muted .mute-icon-on {
+  display: none;
+}
+
+.mute-toggle-button.muted .mute-icon-off {
+  display: block;
+}
+
 /* Tabs */
 .tab-bar {
   display: flex;
@@ -520,14 +551,20 @@ body {
   50% { opacity: 0.6; }
 }
 
-/* Quick replies */
+/* Quick replies — plain chips only (fulfillment, confirm, spice level,
+   quantity, welcome starters). Capped to roughly 4 rows and scrollable so a
+   long list (the 10 welcome starters) never pushes the chat input off
+   screen — short lists just render in fewer rows with no visible scrollbar. */
 .quick-replies {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-content: flex-start;
   gap: 8px;
   padding: 0 16px 12px;
   flex-shrink: 0;
+  max-height: 168px;
+  overflow-y: auto;
 }
 
 /* Plain chips read as the customer's own reply options, so they sit on
@@ -553,99 +590,171 @@ body {
   box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 
-.quick-reply-cards {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  width: 100%;
-}
-
-.quick-reply-card {
-  position: relative;
+/* Item cards — rendered directly in the chat transcript (appendItemList),
+   not the quick-reply strip above, so they scroll naturally with the
+   conversation and previous turns' items stay visible in the scrollback. */
+.chat-item-list {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  margin: 0 0 10px 36px;
+  max-width: 88%;
+}
+
+.chat-item-row {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  width: 92px;
-  padding: 10px 8px;
-  border-radius: 14px;
+  gap: 10px;
+  padding: 10px;
+  background: var(--surface);
   border: 1px solid var(--border);
-  background: var(--surface);
-  cursor: pointer;
-  text-align: center;
-  transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+  border-radius: var(--radius);
 }
 
-.quick-reply-card:hover {
-  border-color: var(--accent);
-  transform: translateY(-2px);
+.chat-item-row-image {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  line-height: 0;
 }
 
-.quick-reply-card.selected {
-  border-color: var(--accent);
-  border-width: 2px;
-  background: #e8f0fa;
-}
-
-.quick-reply-card-check {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1.5px solid var(--border);
-  background: var(--surface);
-  box-sizing: border-box;
-}
-
-.quick-reply-card.selected .quick-reply-card-check {
-  border-color: var(--accent);
-  background: var(--accent);
-}
-
-.quick-reply-card.selected .quick-reply-card-check::after {
-  content: "";
-  position: absolute;
-  left: 4px;
-  top: 1px;
-  width: 4px;
-  height: 8px;
-  border: solid #fff;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-.quick-reply-card-icon svg {
+.chat-item-row-image svg {
   display: block;
+  width: 56px;
+  height: 56px;
 }
 
-.quick-reply-card-label {
-  font-size: 11px;
+.chat-item-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-item-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.chat-item-row-name {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chat-item-row-price {
+  flex-shrink: 0;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 1.25;
-}
-
-.quick-reply-card-price {
-  font-size: 11px;
   color: var(--text-muted);
 }
 
-.quick-reply-add-bar {
-  width: 100%;
-  padding: 12px;
+.chat-item-row-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.badge-veg {
+  background: #e1f3e1;
+  color: #2a7a2a;
+}
+
+.badge-nonveg {
+  background: #f7dfda;
+  color: #a0442a;
+}
+
+.badge-bestseller {
+  background: #fbe7c6;
+  color: #8a5a1f;
+}
+
+.badge-spicy {
+  background: #fde3da;
+  color: #b8471f;
+}
+
+.badge-recommended {
+  background: #e8f0fa;
+  color: var(--accent);
+}
+
+.chat-item-row-desc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.chat-item-row-action {
+  flex-shrink: 0;
+}
+
+.chat-item-add-button {
+  padding: 7px 16px;
   border: none;
   border-radius: 999px;
   background: var(--accent);
   color: #fff;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.quick-reply-add-bar:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.chat-item-qty-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat-item-qty-stepper button {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chat-item-qty-stepper span {
+  min-width: 14px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chat-item-qty-confirm {
+  border-color: var(--accent) !important;
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+.chat-item-add-status {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.chat-item-add-status--success {
+  color: #2a7a2a;
+}
+
+.chat-item-add-status--error {
+  color: #a02020;
 }
 
 /* Order locked banner */

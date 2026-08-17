@@ -356,6 +356,24 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "compare_items",
+      description:
+        "Compare two menu items side by side. Both itemIds must be exact — use search_menu_items first " +
+        "for either name that isn't already an unambiguous match. Returns both full items for the " +
+        "customer to see as cards; you then briefly say what each is best for and recommend one.",
+      parameters: {
+        type: "object",
+        properties: {
+          itemId1: { type: "string", description: "Exact itemId of the first item." },
+          itemId2: { type: "string", description: "Exact itemId of the second item." },
+        },
+        required: ["itemId1", "itemId2"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "get_eligible_promotions",
       description: "Returns active promotions the current order is currently eligible for.",
       parameters: { type: "object", properties: {} },
@@ -431,7 +449,7 @@ function executeTool(name, args, order, activeSessionId) {
       return { review: buildOrderReview(order) };
     case "get_recommendations": {
       const picks = getRecommendations(order);
-      return { recommendations: picks, quickReplies: buildItemQuickReplies(picks) };
+      return { recommendations: picks, quickReplies: buildItemQuickReplies(picks, { recommended: true }) };
     }
     case "get_bestsellers": {
       const picks = MENU.items.filter((item) => item.bestseller && item.available);
@@ -455,6 +473,15 @@ function executeTool(name, args, order, activeSessionId) {
     }
     case "present_quantity_options":
       return { reply: "How many would you like?", quickReplies: ["1", "2", "3", "4"] };
+    case "compare_items": {
+      const item1 = MENU.items.find((m) => m.id === args.itemId1);
+      const item2 = MENU.items.find((m) => m.id === args.itemId2);
+      if (!item1 || !item2) {
+        const missing = [!item1 ? args.itemId1 : null, !item2 ? args.itemId2 : null].filter(Boolean);
+        return { error: `Item id(s) not found: ${missing.join(", ")}. Use search_menu_items to find the correct id.` };
+      }
+      return { items: [item1, item2], quickReplies: buildItemQuickReplies([item1, item2]) };
+    }
     case "get_eligible_promotions":
       return { eligiblePromotions: getEligiblePromotions(order) };
     case "present_confirmation_options":
@@ -797,13 +824,19 @@ function searchMenuItems(query) {
 // Renders a list of menu items as rich quick-reply cards (image + price),
 // so the frontend can show a tappable, image-and-select list instead of
 // the AI (or the customer) having to type an exact item name.
-function buildItemQuickReplies(items) {
+function buildItemQuickReplies(items, options = {}) {
   return items.map((item) => ({
     label: item.name,
     value: `I'd like to add ${item.name}`,
     image: item.image || null,
     price: item.sizes[0].price,
     itemId: item.id,
+    description: item.description || "",
+    dietary: item.dietary || [],
+    bestseller: Boolean(item.bestseller),
+    spicy: Boolean(item.spicy),
+    chefRecommended: Boolean(item.chefRecommended),
+    recommended: Boolean(options.recommended),
   }));
 }
 
