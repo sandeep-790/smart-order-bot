@@ -14,18 +14,24 @@ const API_BASE = "";
 const SESSION_STORAGE_KEY = "cafebotSessionId";
 
 // Static, always-available conversation starters — not AI-generated.
+// Order matters here: chip width varies a lot by label length, and
+// flex-wrap packs greedily in array order (fills the current row, wraps
+// when the next chip doesn't fit — it never backfills an earlier row).
+// This order was chosen by measuring real rendered chip widths and running
+// a bin-packing pass to minimize row count (8 rows -> 7 at a 375px mobile
+// viewport) rather than just listing chips in topic order.
 const WELCOME_QUICK_REPLIES = [
-  "⭐ Show bestsellers",
-  "👨‍🍳 recommend something",
-  "🔥 What's special today?",
-  "🥗 Show me veg options",
-  "Show me non-veg options",
-  "🌶️ spicy dishes",
-  "👨‍🍳 chef's recommendations",
   "👥 Suggest something for two",
+  "🌶️ spicy dishes",
   "🍽️ Suggest a complete meal",
+  "👨‍🍳 chef's recommendations",
+  "Show me non-veg options",
   "💰 items under ₹200",
+  "👨‍🍳 recommend something",
   "💰 items under ₹500",
+  "🔥 What's special today?",
+  "⭐ Show bestsellers",
+  "🥗 Show me veg options",
 ];
 
 // Small inline icon set for menu item thumbnails — resolved from the
@@ -79,24 +85,14 @@ const startOverButton = document.getElementById("startOverButton");
 const muteToggleButton = document.getElementById("muteToggleButton");
 
 // --- Text-to-speech (RoboCap speaks its own replies) -----------------------
-// Browser-native speechSynthesis — no server involved, no new dependency,
-// same philosophy as the mic's SpeechRecognition. Prefers an Indian-English
-// voice when the browser/OS has one installed; falls back to whatever
-// default voice is available otherwise (not every device ships one).
+// Real neural TTS via the backend's POST /api/tts (proxies to Sarvam AI's
+// Bulbul model server-side, so the API key never reaches the browser) —
+// sounds noticeably more human than the browser's built-in speechSynthesis.
+// One reusable <audio> element, reused for every reply.
 const MUTE_STORAGE_KEY = "robocapMuted";
 let ttsMuted = localStorage.getItem(MUTE_STORAGE_KEY) === "true";
-let preferredVoice = null;
-
-function pickPreferredVoice() {
-  if (!window.speechSynthesis) return;
-  const voices = speechSynthesis.getVoices();
-  preferredVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("en-in")) || null;
-}
-
-if (window.speechSynthesis) {
-  pickPreferredVoice();
-  speechSynthesis.addEventListener("voiceschanged", pickPreferredVoice);
-}
+const ttsAudio = new Audio();
+let ttsRequestToken = 0; // ignores a slow response that resolves after a newer speak() call
 
 function updateMuteButtonUi() {
   muteToggleButton.classList.toggle("muted", ttsMuted);
@@ -105,21 +101,40 @@ function updateMuteButtonUi() {
 }
 updateMuteButtonUi();
 
+function stopSpeaking() {
+  ttsRequestToken += 1; // any in-flight fetch for the old audio is now stale
+  ttsAudio.pause();
+  ttsAudio.currentTime = 0;
+}
+
 muteToggleButton.addEventListener("click", () => {
   ttsMuted = !ttsMuted;
   localStorage.setItem(MUTE_STORAGE_KEY, String(ttsMuted));
   updateMuteButtonUi();
-  if (ttsMuted && window.speechSynthesis) speechSynthesis.cancel();
+  if (ttsMuted) stopSpeaking();
 });
 
-function speak(text) {
-  if (ttsMuted || !window.speechSynthesis || !text) return;
-  // Cancel first so a fast-arriving reply never talks over the previous one.
-  speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text.replace(/\*\*(.+?)\*\*/g, "$1"));
-  utterance.lang = "en-IN";
-  if (preferredVoice) utterance.voice = preferredVoice;
-  speechSynthesis.speak(utterance);
+async function speak(text) {
+  if (ttsMuted || !text) return;
+  stopSpeaking(); // a fast-arriving reply should never talk over the previous one
+  const token = ttsRequestToken;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text.replace(/\*\*(.+?)\*\*/g, "$1") }),
+    });
+    if (!res.ok) return; // not configured, rate-limited, etc. — voice is optional, fail silent
+    const blob = await res.blob();
+
+    if (token !== ttsRequestToken || ttsMuted) return; // superseded or muted while we were fetching
+    ttsAudio.src = URL.createObjectURL(blob);
+    await ttsAudio.play().catch(() => {}); // browser may block autoplay before any user gesture
+  } catch (err) {
+    // Voice is a nice-to-have layered on top of the chat — never surface a
+    // TTS failure to the customer.
+  }
 }
 
 function formatTime(date) {
@@ -303,23 +318,21 @@ function buildAddControl(item) {
   function renderStepper() {
     let qty = 1;
     wrap.innerHTML = "";
+    wrap.classList.add("chat-item-add--stepper");
 
     const stepper = document.createElement("div");
     stepper.className = "chat-item-qty-stepper";
 
     const minus = document.createElement("button");
     minus.type = "button";
+    minus.setAttribute("aria-label", "Decrease quantity");
     minus.textContent = "−";
     const qtyLabel = document.createElement("span");
     qtyLabel.textContent = String(qty);
     const plus = document.createElement("button");
     plus.type = "button";
+    plus.setAttribute("aria-label", "Increase quantity");
     plus.textContent = "+";
-    const confirm = document.createElement("button");
-    confirm.type = "button";
-    confirm.className = "chat-item-qty-confirm";
-    confirm.setAttribute("aria-label", "Confirm quantity and add");
-    confirm.textContent = "✓";
 
     minus.addEventListener("click", () => {
       if (qty > 1) qtyLabel.textContent = String((qty -= 1));
@@ -327,10 +340,16 @@ function buildAddControl(item) {
     plus.addEventListener("click", () => {
       if (qty < 10) qtyLabel.textContent = String((qty += 1));
     });
+
+    stepper.append(minus, qtyLabel, plus);
+
+    const confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.className = "chat-item-qty-confirm";
+    confirm.innerHTML = "✓ Add";
     confirm.addEventListener("click", () => confirmChatItemAdd(item, qty, wrap, renderIdle));
 
-    stepper.append(minus, qtyLabel, plus, confirm);
-    wrap.appendChild(stepper);
+    wrap.append(stepper, confirm);
   }
 
   renderIdle();
