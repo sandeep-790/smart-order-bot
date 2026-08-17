@@ -416,7 +416,9 @@ async function sendChatMessage(text) {
     if (!orderLockedBanner.hidden) return;
     chatInput.disabled = false;
     sendButton.disabled = false;
-    chatInput.focus();
+    // No .focus() here — on mobile that pops the keyboard open right after
+    // every reply. The input should only get focus (and the keyboard) when
+    // the customer deliberately taps it themselves.
   }
 }
 
@@ -442,7 +444,6 @@ chatInput.addEventListener("keydown", (event) => {
 startOverButton.addEventListener("click", () => {
   lockChatInput(false);
   chatInput.value = "";
-  chatInput.focus();
   // A fresh order shouldn't drag the previous order's entire conversation
   // into the AI's context on every future turn.
   chatHistory.length = 0;
@@ -472,6 +473,13 @@ if (SpeechRecognitionApi) {
   let listening = false;
   let autoSendPending = false;
   let silenceTimer = null;
+  // Accumulates only text the engine has already finalized. Re-summing
+  // event.results[0..length) from scratch on every "result" event (the
+  // previous approach) is what caused words to repeat 2-3x: in continuous
+  // mode Chrome periodically re-segments the audio and can re-emit an
+  // already-finalized span as if it were new. Tracking our own running
+  // total and only appending genuinely-final segments once sidesteps that.
+  let finalTranscript = "";
   const SILENCE_AUTO_SEND_MS = 2000;
 
   micButton.hidden = false;
@@ -487,11 +495,16 @@ if (SpeechRecognitionApi) {
   }
 
   recognition.addEventListener("result", (event) => {
-    let transcript = "";
-    for (let i = 0; i < event.results.length; i++) {
-      transcript += event.results[i][0].transcript;
+    let interimTranscript = "";
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const segment = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalTranscript += segment;
+      } else {
+        interimTranscript += segment;
+      }
     }
-    chatInput.value = transcript;
+    chatInput.value = (finalTranscript + interimTranscript).trim();
 
     clearTimeout(silenceTimer);
     startSendCountdown();
@@ -510,9 +523,8 @@ if (SpeechRecognitionApi) {
     if (autoSendPending) {
       autoSendPending = false;
       if (chatInput.value.trim()) chatForm.requestSubmit();
-    } else {
-      chatInput.focus();
     }
+    // No .focus() here either — same "don't pop the keyboard uninvited" reasoning.
   });
 
   recognition.addEventListener("error", () => {
@@ -532,6 +544,7 @@ if (SpeechRecognitionApi) {
       return;
     }
     listening = true;
+    finalTranscript = "";
     micButton.classList.add("mic-listening");
     recognition.start();
   });

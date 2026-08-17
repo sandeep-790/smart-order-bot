@@ -65,6 +65,7 @@ function normalizeTextForSpeech(text) {
   return text
     .replace(/\*\*(.+?)\*\*/g, "$1") // strip markdown bold
     .replace(/^\s*[*-]\s+/gm, "") // strip leading "* "/"- " bullet markers
+    .replace(/\b(\d+)\s?x\s+/gi, "$1 quantity of ") // "2x Medu Vada" -> "2 quantity of Medu Vada", not "2 times ..."
     .replace(/₹\s?(\d+(?:\.\d+)?)/g, "$1 rupees") // ₹80 -> "80 rupees"
     .replace(/\(/g, ", ") // parenthetical asides read as a natural spoken pause
     .replace(/\)/g, "")
