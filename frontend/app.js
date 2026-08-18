@@ -428,7 +428,7 @@ function hideOldViewCartChips() {
 // that would otherwise leave the customer without a clear next step.
 function maybeOfferViewCart() {
   if (checkoutStarted) return;
-  const onChatTab = document.getElementById("tab-chat").classList.contains("active");
+  const onChatTab = document.getElementById("view-chat").classList.contains("active");
   const count = state.order ? state.order.items.reduce((sum, i) => sum + i.quantity, 0) : 0;
   if (onChatTab && count > 0) {
     // Only the latest turn's View Cart chip should ever be tappable —
@@ -927,7 +927,7 @@ const state = {
   sessionId: sessionStorage.getItem(SESSION_STORAGE_KEY) || null,
   order: null,
   menu: [],
-  previousMainTab: "chat",
+  previousMainTab: "menu",
 };
 
 function saveSessionId(id) {
@@ -978,23 +978,32 @@ function formatMoney(amount) {
 const tabBar = document.getElementById("tabBar");
 const tabButtons = tabBar.querySelectorAll(".tab-button");
 const allPanels = document.querySelectorAll(".tab-panel");
-const mainTabNames = ["chat", "menu", "orders"];
+const mainHeader = document.getElementById("mainHeader");
+const mainTabNames = ["menu", "orders"];
 
 function showTab(name) {
   state.previousMainTab = name;
   allPanels.forEach((panel) => panel.classList.toggle("active", panel.id === `tab-${name}`));
   tabButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === name));
   tabBar.hidden = false;
+  // RoboCap's overlay hides this in favor of its own header — every other
+  // tab/view keeps it visible.
+  mainHeader.hidden = false;
 
   if (name === "menu" && state.menu.length === 0) loadMenu();
   if (name === "orders") loadOrderHistory();
   updateCartCount();
+  updateRobocapFloaterVisibility();
 }
 
 function showView(name) {
   allPanels.forEach((panel) => panel.classList.toggle("active", panel.id === `view-${name}`));
   tabBar.hidden = true;
+  // The RoboCap overlay is a "new window" with its own header — Cart and
+  // Checkout are lighter pushed views that keep the main header above them.
+  mainHeader.hidden = name === "chat";
   updateCartCount();
+  updateRobocapFloaterVisibility();
 }
 
 tabBar.addEventListener("click", (event) => {
@@ -1013,6 +1022,95 @@ floatingCartButton.addEventListener("click", () => {
   showView("cart");
 });
 
+const robocapFloater = document.getElementById("robocapFloater");
+
+// Draggable RoboCap bubble — Pointer Events cover mouse/touch/pen through
+// one code path. Repositions via left/top (switching off the CSS default
+// right/top the first time it's dragged), clamped to .chat-app's own
+// bounding box so it can never be dragged outside the visible app frame —
+// the same frame the floating cart pill and categories button already
+// live in. A tap (negligible pointer movement) opens the chat overlay; a
+// real drag just leaves it at the new spot.
+function initRobocapFloater() {
+  const appEl = document.querySelector(".chat-app");
+  const DRAG_THRESHOLD = 6;
+  let dragging = false;
+  let startClientX = 0;
+  let startClientY = 0;
+  let startLeft = 0;
+  let startTop = 0;
+  let moved = 0;
+
+  robocapFloater.addEventListener("pointerdown", (event) => {
+    const appRect = appEl.getBoundingClientRect();
+    const floaterRect = robocapFloater.getBoundingClientRect();
+    dragging = true;
+    moved = 0;
+    startClientX = event.clientX;
+    startClientY = event.clientY;
+    startLeft = floaterRect.left - appRect.left;
+    startTop = floaterRect.top - appRect.top;
+    // Can throw (NotFoundError) in edge cases where the browser doesn't
+    // consider this pointerId "active" yet — capture is a nice-to-have
+    // (keeps the drag tracking even if the pointer leaves the button's
+    // bounds), not a requirement, so failing silently is fine.
+    try {
+      robocapFloater.setPointerCapture(event.pointerId);
+    } catch (err) {
+      // ignore
+    }
+    robocapFloater.classList.add("dragging");
+  });
+
+  robocapFloater.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    const dx = event.clientX - startClientX;
+    const dy = event.clientY - startClientY;
+    moved = Math.max(moved, Math.hypot(dx, dy));
+
+    const appRect = appEl.getBoundingClientRect();
+    const maxLeft = appRect.width - robocapFloater.offsetWidth;
+    const maxTop = appRect.height - robocapFloater.offsetHeight;
+    const newLeft = Math.min(Math.max(startLeft + dx, 0), Math.max(maxLeft, 0));
+    const newTop = Math.min(Math.max(startTop + dy, 0), Math.max(maxTop, 0));
+
+    robocapFloater.style.right = "auto";
+    robocapFloater.style.left = `${newLeft}px`;
+    robocapFloater.style.top = `${newTop}px`;
+  });
+
+  function endDrag(event) {
+    if (!dragging) return;
+    dragging = false;
+    robocapFloater.classList.remove("dragging");
+    try {
+      if (robocapFloater.hasPointerCapture(event.pointerId)) {
+        robocapFloater.releasePointerCapture(event.pointerId);
+      }
+    } catch (err) {
+      // ignore
+    }
+    if (moved < DRAG_THRESHOLD) {
+      showView("chat");
+      return;
+    }
+    // A real drag never leaves the bubble floating mid-screen — it sticks
+    // to whichever side (left/right) its center ended up closer to, same
+    // as a typical chat-head bubble.
+    const appRect = appEl.getBoundingClientRect();
+    const margin = 16;
+    const floaterWidth = robocapFloater.offsetWidth;
+    const currentLeft = parseFloat(robocapFloater.style.left) || 0;
+    const centerX = currentLeft + floaterWidth / 2;
+    const snapLeft = centerX < appRect.width / 2 ? margin : appRect.width - floaterWidth - margin;
+    robocapFloater.style.left = `${snapLeft}px`;
+  }
+
+  robocapFloater.addEventListener("pointerup", endDrag);
+  robocapFloater.addEventListener("pointercancel", endDrag);
+}
+initRobocapFloater();
+
 function updateCartCount() {
   const count = state.order ? state.order.items.reduce((sum, i) => sum + i.quantity, 0) : 0;
   floatingCartCount.textContent = String(count);
@@ -1027,6 +1125,14 @@ function updateCartCount() {
   // transcript — pad the scroll area so the last message can still scroll
   // fully into view above it instead of being covered.
   chatArea.classList.toggle("chat-area--fab-padding", !floatingCartButton.hidden);
+}
+
+// The RoboCap floater is a Menu/Orders-only affordance, same rule as the
+// floating cart pill — hidden while the chat overlay itself (or Cart/
+// Checkout) is open, since there's nothing useful for it to open onto.
+function updateRobocapFloaterVisibility() {
+  const onMainTab = ["menu", "orders"].some((t) => document.getElementById(`tab-${t}`).classList.contains("active"));
+  robocapFloater.hidden = !onMainTab;
 }
 
 // --- Menu tab -------------------------------------------------------------
@@ -1696,6 +1802,17 @@ if (state.sessionId) {
 }
 
 // Render the seeded conversation + static welcome quick-replies on load,
-// inline in the transcript like every other reply-option chip.
+// inline in the transcript like every other reply-option chip — the chat
+// overlay isn't open yet, but this way it's ready the first time it is.
 appendMessage("bot", "Vanakkam! My name is **RoboCap**! Your virtual Captain. How can I help you today?");
 appendReplyOptions(WELCOME_QUICK_REPLIES, { skipIcon: true });
+
+// Closing RoboCap always lands on Menu specifically (not "whichever tab
+// was active before" — that's Cart/Checkout's back-button convention, and
+// opening the floater doesn't touch state.previousMainTab at all).
+document.getElementById("chatCloseButton").addEventListener("click", () => showTab("menu"));
+
+// Menu is the landing page — showTab's own lazy-load only fires when it's
+// the *target* of a tab switch, so it never ran on load when Menu just
+// started as the active panel. Trigger it explicitly here instead.
+showTab("menu");
