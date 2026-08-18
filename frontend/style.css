@@ -478,11 +478,30 @@ body {
   --text-muted: #7a6a5c;
 }
 
+/* Opening the chat overlay eases in rather than snapping straight to
+   fully visible — pairs with the typing-loader delay before the welcome
+   message (see showChatWelcome in app.js) so landing on the window feels
+   like RoboCap is coming online, not a static screen swap. */
+@keyframes chat-window-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+#view-chat.active {
+  animation: chat-window-in 0.32s ease;
+}
+
 /* Chat area */
 .chat-area {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 16px 10px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -551,8 +570,17 @@ body {
 .message-row.bot .bubble {
   background: var(--bot-bubble);
   color: var(--text);
-  border: 1px solid var(--border);
+  border: 1.5px solid rgba(47, 95, 168, 0.22);
   border-top-left-radius: 4px;
+}
+
+/* Item names and other important terms (see formatBotText's **bold**
+   markdown handling) render in the accent color instead of plain bold
+   black — makes RoboCap's replies read as structured, highlighted
+   information rather than a plain human chat bubble. */
+.message-row.bot .bubble strong {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .message-row.user .bubble {
@@ -617,7 +645,8 @@ body {
   gap: 10px;
   padding: 10px 14px;
   background: var(--flavor-blue-bg);
-  border-top: 1px solid var(--border);
+  border-top: 1.5px solid var(--flavor-blue-text);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
   flex-shrink: 0;
 }
 
@@ -821,6 +850,51 @@ body {
   display: none;
 }
 
+/* Wraps a real (post-skeleton) .chat-item-list so the scroll-affordance
+   hint (see attachScrollHint in app.js) can sit on top of its right edge —
+   the list itself hides its scrollbar, so without this nothing signals
+   there's more to scroll to. */
+.chat-item-list-wrap {
+  position: relative;
+  max-width: 100%;
+}
+
+.chat-item-list-scroll-hint {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 2px;
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background: linear-gradient(to right, transparent, var(--chat-bg) 65%);
+  pointer-events: none;
+}
+
+.chat-item-list-scroll-chevron {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  animation: chat-item-list-scroll-hint-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes chat-item-list-scroll-hint-pulse {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+}
+
 .chat-item-list .chat-compare-card {
   flex: 0 0 179px;
 }
@@ -897,6 +971,56 @@ body {
   font-size: 12px;
   color: var(--text-muted);
   line-height: 1.35;
+}
+
+/* Skeleton loading placeholders — shown in place of item cards for at
+   least SKELETON_MIN_MS before the real cards swap in (see
+   buildSkeletonCard/appendItemList/appendComparisonCards in app.js). */
+@keyframes chat-skeleton-shimmer {
+  0% {
+    background-position: -160px 0;
+  }
+  100% {
+    background-position: 160px 0;
+  }
+}
+
+.chat-skeleton-shimmer {
+  background-image: linear-gradient(90deg, var(--chat-bg) 25%, #f3e6d3 37%, var(--chat-bg) 63%);
+  background-size: 320px 100%;
+  animation: chat-skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.chat-skeleton-card .chat-compare-card-details {
+  gap: 8px;
+}
+
+.chat-skeleton-line {
+  height: 10px;
+  border-radius: 4px;
+}
+
+.chat-skeleton-pill {
+  width: 70px;
+  height: 28px;
+  border-radius: 999px;
+  margin-top: 4px;
+}
+
+/* Comparison cards' "Best for" line — the substance of a comparison now
+   lives here and in .chat-compare-recommendation below, not in RoboCap's
+   chat text (see appendComparisonCards). */
+.chat-item-row-best-for {
+  margin: 6px 0 0;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.chat-item-row-best-for strong {
+  color: var(--accent);
 }
 
 .chat-item-row-action {
@@ -1013,10 +1137,21 @@ body {
 
 /* Welcome starters read as things the customer might say, so they sit on
    the right, like a user bubble, instead of under RoboCap's own message. */
+/* A fixed 2-column grid (rather than flex-wrap, which packs a variable
+   number per row depending on each chip's own text length) so the 8
+   starters always land in exactly 4 rows and use the full chat width. */
 .chat-reply-options--welcome {
-  justify-content: flex-end;
-  align-items: flex-end;
-  margin-left: auto;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.chat-reply-options--welcome .chat-reply-option {
+  width: 100%;
+  white-space: normal;
+  text-align: left;
 }
 
 /* Every reply chip — welcome starter or categorized (fulfillment, confirm,
@@ -1292,6 +1427,47 @@ body {
   font-weight: 800;
   letter-spacing: 0.02em;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* RoboCap's recommendation callout below a comparison — the payoff of the
+   comparison, made scannable instead of buried in a chat paragraph. */
+.chat-compare-recommendation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 10px 0;
+  max-width: 100%;
+  padding: 12px 14px;
+  background: var(--flavor-amber-bg);
+  border: 1px solid var(--flavor-amber-text);
+  border-radius: var(--radius);
+}
+
+.chat-compare-recommendation-icon {
+  flex-shrink: 0;
+  color: var(--flavor-amber-text);
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.chat-compare-recommendation-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.chat-compare-recommendation-title {
+  font-weight: 700;
+  color: var(--flavor-amber-text);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.chat-compare-recommendation-text strong {
+  color: var(--accent);
 }
 
 /* Order locked banner */

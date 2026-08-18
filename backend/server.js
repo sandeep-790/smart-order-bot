@@ -408,15 +408,21 @@ const TOOLS = [
       name: "compare_items",
       description:
         "Compare two menu items side by side. Both itemIds must be exact — use search_menu_items first " +
-        "for either name that isn't already an unambiguous match. Returns both full items for the " +
-        "customer to see as cards; you then briefly say what each is best for and recommend one.",
+        "for either name that isn't already an unambiguous match. Renders as cards with your best-for " +
+        "line under each and your recommendation in a callout below — the customer reads the highlights, " +
+        "not a paragraph, so keep every string here short (under 8 words) and keep your own chat reply " +
+        "to one brief sentence pointing at the cards.",
       parameters: {
         type: "object",
         properties: {
           itemId1: { type: "string", description: "Exact itemId of the first item." },
           itemId2: { type: "string", description: "Exact itemId of the second item." },
+          item1BestFor: { type: "string", description: "Short phrase: who/what item 1 is best for, e.g. 'Those who love rich, comforting flavors'." },
+          item2BestFor: { type: "string", description: "Short phrase: who/what item 2 is best for." },
+          recommendedItemId: { type: "string", description: "Exact itemId of whichever of the two you recommend (must equal itemId1 or itemId2)." },
+          recommendationReason: { type: "string", description: "One short phrase for why, e.g. 'for that smoky, irresistible flavor'." },
         },
-        required: ["itemId1", "itemId2"],
+        required: ["itemId1", "itemId2", "item1BestFor", "item2BestFor", "recommendedItemId", "recommendationReason"],
       },
     },
   },
@@ -534,7 +540,21 @@ function executeTool(name, args, order, activeSessionId) {
         const missing = [!item1 ? args.itemId1 : null, !item2 ? args.itemId2 : null].filter(Boolean);
         return { error: `Item id(s) not found: ${missing.join(", ")}. Use search_menu_items to find the correct id.` };
       }
-      return { items: [item1, item2], quickReplies: buildItemQuickReplies([item1, item2]), isComparison: true };
+      if (args.recommendedItemId !== item1.id && args.recommendedItemId !== item2.id) {
+        return { error: "recommendedItemId must exactly equal itemId1 or itemId2." };
+      }
+      return {
+        items: [item1, item2],
+        quickReplies: buildItemQuickReplies([item1, item2]),
+        isComparison: true,
+        comparisonHighlights: {
+          item1BestFor: args.item1BestFor,
+          item2BestFor: args.item2BestFor,
+          recommendedItemId: args.recommendedItemId,
+          recommendedItemName: args.recommendedItemId === item1.id ? item1.name : item2.name,
+          recommendationReason: args.recommendationReason,
+        },
+      };
     }
     case "get_eligible_promotions":
       return { eligiblePromotions: getEligiblePromotions(order) };
@@ -582,6 +602,7 @@ async function runAiTurn(history, message, order, activeSessionId) {
   const conversation = buildMessages(history, message);
   let quickReplies = null;
   let isComparison = false;
+  let comparisonHighlights = null;
   let isOrderSummary = false;
   let isPairingSuggestion = false;
   let orderJustConfirmed = false;
@@ -622,7 +643,15 @@ async function runAiTurn(history, message, order, activeSessionId) {
     }
 
     if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-      return { reply: assistantMessage.content || "", quickReplies, isComparison, isOrderSummary, isPairingSuggestion, orderJustConfirmed };
+      return {
+        reply: assistantMessage.content || "",
+        quickReplies,
+        isComparison,
+        comparisonHighlights,
+        isOrderSummary,
+        isPairingSuggestion,
+        orderJustConfirmed,
+      };
     }
 
     conversation.push(assistantMessage);
@@ -645,6 +674,7 @@ async function runAiTurn(history, message, order, activeSessionId) {
       if (result.quickReplies) {
         quickReplies = result.quickReplies;
         isComparison = Boolean(result.isComparison);
+        comparisonHighlights = result.comparisonHighlights || null;
         isOrderSummary = Boolean(result.isOrderSummary);
         isPairingSuggestion = Boolean(result.isPairingSuggestion);
       }
@@ -1679,12 +1709,15 @@ app.post("/api/chat", async (req, res) => {
   const activeSessionId = resolved.sessionId;
   const order = getOrCreateOrder(activeSessionId);
 
-  const { reply, quickReplies, isComparison, isOrderSummary, isPairingSuggestion, orderJustConfirmed } = await runAiTurn(
-    history,
-    message,
-    order,
-    activeSessionId
-  );
+  const {
+    reply,
+    quickReplies,
+    isComparison,
+    comparisonHighlights,
+    isOrderSummary,
+    isPairingSuggestion,
+    orderJustConfirmed,
+  } = await runAiTurn(history, message, order, activeSessionId);
 
   res.json({
     reply,
@@ -1692,6 +1725,7 @@ app.post("/api/chat", async (req, res) => {
     order,
     quickReplies: quickReplies || null,
     isComparison: Boolean(isComparison),
+    comparisonHighlights: comparisonHighlights || null,
     isOrderSummary: Boolean(isOrderSummary),
     isPairingSuggestion: Boolean(isPairingSuggestion),
     orderJustConfirmed: Boolean(orderJustConfirmed),

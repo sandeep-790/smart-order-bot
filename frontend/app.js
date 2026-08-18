@@ -201,6 +201,20 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Every AI reply pauses on the typing loader for at least this long (see
+// sendChatMessage) so a fast response still feels like a considered answer
+// instead of flashing the indicator for a few ms.
+const MIN_TYPING_MS = 900;
+// Item-card results (see appendItemList/appendComparisonCards) show a
+// shimmering skeleton in their place for at least this long before the
+// real cards swap in — same idea, applied to "fetching results" rather
+// than "thinking of a reply".
+const SKELETON_MIN_MS = 1500;
+
 // RoboCap's replies use markdown-style **bold** for item names and other
 // important terms — escape first (this is model-generated text going into
 // the DOM), then turn the already-escaped ** markers into <strong> tags.
@@ -616,39 +630,133 @@ function truncateWords(text, maxWords) {
   return `${words.slice(0, maxWords).join(" ")}…`;
 }
 
+// A shimmering placeholder the same shape/size as a real item card (see
+// buildChatItemCard) — shown while item-card results are "loading" (see
+// SKELETON_MIN_MS) so results never just pop into existence.
+function buildSkeletonCard() {
+  const card = document.createElement("div");
+  card.className = "chat-compare-card chat-skeleton-card";
+  card.innerHTML = `
+    <div class="chat-compare-card-image chat-skeleton-shimmer"></div>
+    <div class="chat-compare-card-details">
+      <div class="chat-skeleton-line chat-skeleton-shimmer" style="width:70%;height:14px;"></div>
+      <div class="chat-skeleton-line chat-skeleton-shimmer" style="width:95%;"></div>
+      <div class="chat-skeleton-line chat-skeleton-shimmer" style="width:55%;"></div>
+      <div class="chat-skeleton-pill chat-skeleton-shimmer"></div>
+    </div>
+  `;
+  return card;
+}
+
 // Renders items returned by an item-listing/comparison tool as cards
 // appended directly to the chat transcript — not the quick-reply strip —
 // so previous turns' items stay visible in the scrollback instead of being
 // replaced by the next turn's, and they never crowd the input area. Two
 // cards per row (see .chat-item-list's grid), same portrait shape as a
-// comparison card.
-function appendItemList(items) {
+// comparison card. Shows skeleton placeholders first (see buildSkeletonCard)
+// for at least SKELETON_MIN_MS before swapping in the real cards.
+async function appendItemList(items) {
+  const skeletonList = document.createElement("div");
+  skeletonList.className = "chat-item-list";
+  for (let i = 0; i < items.length; i++) {
+    skeletonList.appendChild(buildSkeletonCard());
+  }
+  chatArea.appendChild(skeletonList);
+  chatArea.scrollTop = chatArea.scrollHeight;
+
+  await sleep(SKELETON_MIN_MS);
+
   const list = document.createElement("div");
   list.className = "chat-item-list";
   for (const item of items) {
     list.appendChild(buildChatItemCard(item));
   }
-  chatArea.appendChild(list);
+  skeletonList.replaceWith(attachScrollHint(list));
   chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+// Wraps a scrollable .chat-item-list with a fading, pulsing chevron hint on
+// its right edge whenever there's more content to scroll to — the
+// scrollbar itself is hidden (see .chat-item-list CSS), so without this
+// nothing signals the row is scrollable at all. Hides itself once the
+// customer has scrolled to the end.
+function attachScrollHint(list) {
+  const wrap = document.createElement("div");
+  wrap.className = "chat-item-list-wrap";
+  wrap.appendChild(list);
+
+  const hint = document.createElement("div");
+  hint.className = "chat-item-list-scroll-hint";
+  hint.innerHTML =
+    '<span class="chat-item-list-scroll-chevron">' +
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+    '<path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+    "</span>";
+  wrap.appendChild(hint);
+
+  function updateHint() {
+    const hasOverflow = list.scrollWidth > list.clientWidth + 4;
+    const atEnd = list.scrollLeft + list.clientWidth >= list.scrollWidth - 4;
+    hint.hidden = !hasOverflow || atEnd;
+  }
+  list.addEventListener("scroll", updateHint);
+  updateHint();
+  // Card photos loading in can grow scrollWidth after the initial layout
+  // pass — check again shortly after so the hint doesn't stay hidden.
+  setTimeout(updateHint, 300);
+
+  return wrap;
 }
 
 // Renders exactly two items as a side-by-side "VS" comparison — the same
 // portrait cards as appendItemList, plus a circular VS badge on the seam
-// between them.
-function appendComparisonCards(items) {
+// between them. highlights (from compare_items' comparisonHighlights) adds
+// a "Best for" line under each card and a recommendation callout below —
+// this is the substance of the comparison now, not a text paragraph, so the
+// customer can read it at a glance instead of a wall of prose. Skeleton
+// placeholders show first, same as appendItemList.
+async function appendComparisonCards(items, highlights) {
+  const skeletonWrap = document.createElement("div");
+  skeletonWrap.className = "chat-compare-wrap";
+  skeletonWrap.appendChild(buildSkeletonCard());
+  const skeletonVs = document.createElement("span");
+  skeletonVs.className = "chat-compare-vs";
+  skeletonVs.textContent = "VS";
+  skeletonWrap.appendChild(skeletonVs);
+  skeletonWrap.appendChild(buildSkeletonCard());
+  chatArea.appendChild(skeletonWrap);
+  chatArea.scrollTop = chatArea.scrollHeight;
+
+  await sleep(SKELETON_MIN_MS);
+
   const wrap = document.createElement("div");
   wrap.className = "chat-compare-wrap";
 
-  wrap.appendChild(buildChatItemCard(items[0]));
+  wrap.appendChild(buildChatItemCard(items[0], highlights ? highlights.item1BestFor : null));
 
   const vs = document.createElement("span");
   vs.className = "chat-compare-vs";
   vs.textContent = "VS";
   wrap.appendChild(vs);
 
-  wrap.appendChild(buildChatItemCard(items[1]));
+  wrap.appendChild(buildChatItemCard(items[1], highlights ? highlights.item2BestFor : null));
 
-  chatArea.appendChild(wrap);
+  skeletonWrap.replaceWith(wrap);
+
+  if (highlights && highlights.recommendedItemName) {
+    const callout = document.createElement("div");
+    callout.className = "chat-compare-recommendation";
+    callout.innerHTML =
+      '<span class="chat-compare-recommendation-icon">★</span>' +
+      '<div class="chat-compare-recommendation-text">' +
+      '<span class="chat-compare-recommendation-title">RoboCap Recommends</span>' +
+      `<span>Go for <strong>${escapeHtml(highlights.recommendedItemName)}</strong>${
+        highlights.recommendationReason ? ` ${escapeHtml(highlights.recommendationReason)}` : ""
+      }</span>` +
+      "</div>";
+    chatArea.appendChild(callout);
+  }
+
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
@@ -667,7 +775,7 @@ function dietaryIcon(isVeg) {
   );
 }
 
-function buildChatItemCard(item) {
+function buildChatItemCard(item, bestFor) {
   const card = document.createElement("div");
   card.className = "chat-compare-card";
 
@@ -692,6 +800,11 @@ function buildChatItemCard(item) {
         ${item.price != null ? `<span class="chat-item-row-price">₹${Number(item.price).toFixed(0)}</span>` : ""}
       </div>
       ${item.description ? `<p class="chat-item-row-desc">${truncateWords(item.description, 10)}</p>` : ""}
+      ${
+        bestFor
+          ? `<p class="chat-item-row-best-for"><strong>Best for:</strong> ${escapeHtml(bestFor)}</p>`
+          : ""
+      }
       <div class="chat-item-row-action"></div>
     </div>
   `;
@@ -839,12 +952,18 @@ function disableChatHistoryInteractions() {
 async function sendChatMessage(text) {
   chatInput.disabled = true;
   sendButton.disabled = true;
+  const typingStartedAt = Date.now();
   showTypingIndicator();
 
   try {
     const data = await apiSend("POST", "/api/chat", { message: text, history: chatHistory });
     chatHistory.push({ role: "user", content: text });
     chatHistory.push({ role: "assistant", content: data.reply });
+    // Every reply pauses on the typing loader for at least MIN_TYPING_MS —
+    // a fast response would otherwise flash the indicator for a few ms,
+    // which reads as broken rather than "RoboCap thought about it".
+    const typingElapsed = Date.now() - typingStartedAt;
+    if (typingElapsed < MIN_TYPING_MS) await sleep(MIN_TYPING_MS - typingElapsed);
     removeTypingIndicator();
     appendMessage("bot", data.reply, {
       speakText: data.orderJustConfirmed
@@ -857,7 +976,7 @@ async function sendChatMessage(text) {
     const isItemList = Array.isArray(data.quickReplies) && data.quickReplies.length > 0 && typeof data.quickReplies[0] === "object";
     if (isItemList) {
       if (data.isComparison && data.quickReplies.length === 2) {
-        appendComparisonCards(data.quickReplies);
+        appendComparisonCards(data.quickReplies, data.comparisonHighlights);
       } else {
         appendItemList(data.quickReplies);
       }
@@ -1135,6 +1254,23 @@ function showTab(name) {
   updateRobocapFloaterVisibility();
 }
 
+// The welcome message + starter chips aren't rendered until the chat
+// overlay is actually opened for the first time (see showView) — a brief
+// typing loader plays first, so landing on the chat window feels like
+// RoboCap is "waking up" rather than a chat that was already sitting there
+// fully formed. Guarded so it only ever plays once per page load.
+let chatWelcomeShown = false;
+function showChatWelcome() {
+  if (chatWelcomeShown) return;
+  chatWelcomeShown = true;
+  showTypingIndicator();
+  setTimeout(() => {
+    removeTypingIndicator();
+    appendMessage("bot", "Vanakkam! My name is **RoboCap**! Your virtual Captain. How can I help you today?");
+    appendReplyOptions(WELCOME_QUICK_REPLIES, { skipIcon: true });
+  }, 1100);
+}
+
 function showView(name) {
   allPanels.forEach((panel) => panel.classList.toggle("active", panel.id === `view-${name}`));
   tabBar.hidden = true;
@@ -1143,6 +1279,7 @@ function showView(name) {
   mainHeader.hidden = name === "chat";
   updateCartCount();
   updateRobocapFloaterVisibility();
+  if (name === "chat") showChatWelcome();
 }
 
 tabBar.addEventListener("click", (event) => {
@@ -1980,11 +2117,6 @@ if (state.sessionId) {
     .catch(() => {});
 }
 
-// Render the seeded conversation + static welcome quick-replies on load,
-// inline in the transcript like every other reply-option chip — the chat
-// overlay isn't open yet, but this way it's ready the first time it is.
-appendMessage("bot", "Vanakkam! My name is **RoboCap**! Your virtual Captain. How can I help you today?");
-appendReplyOptions(WELCOME_QUICK_REPLIES, { skipIcon: true });
 
 // Closing RoboCap always lands on Menu specifically (not "whichever tab
 // was active before" — that's Cart/Checkout's back-button convention, and
