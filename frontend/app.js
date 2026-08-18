@@ -307,6 +307,44 @@ function sendQuickReply(value, displayText) {
   sendChatMessage(value);
 }
 
+// Shown whenever the AI turn fails for any reason (network down, AI
+// service unreachable, an unexpected server error) — deliberately never
+// surfaces the underlying technical error (see sendChatMessage's catch),
+// just a plain-language apology plus a way forward: retry the exact same
+// message, or give up on chat and browse the menu directly.
+function appendChatError(retryText) {
+  appendMessage("bot", "I'm not able to process that right now. Please feel free to browse the menu, or try again.");
+
+  const wrap = document.createElement("div");
+  wrap.className = "chat-reply-options";
+
+  const retryButton = document.createElement("button");
+  retryButton.type = "button";
+  retryButton.className = "chat-reply-option chat-reply-option--primary";
+  retryButton.innerHTML = "<span>↻ Retry</span>";
+  retryButton.addEventListener("click", () => {
+    retryButton.disabled = true;
+    menuButton.disabled = true;
+    appendMessage("user", retryText);
+    sendChatMessage(retryText);
+  });
+
+  const menuButton = document.createElement("button");
+  menuButton.type = "button";
+  menuButton.className = "chat-reply-option";
+  menuButton.innerHTML =
+    '<span class="chat-reply-option-icon chat-reply-option-icon--blue">🍽️</span><span>Browse Menu</span>';
+  menuButton.addEventListener("click", () => {
+    retryButton.disabled = true;
+    menuButton.disabled = true;
+    showTab("menu");
+  });
+
+  wrap.append(retryButton, menuButton);
+  chatArea.appendChild(wrap);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
 // Small inline icon set for in-chat reply options (fulfillment, confirm,
 // spice level, quantity, View Cart, checkout) — matched by pattern against
 // the option's own text so it stays correct even if the AI phrases things
@@ -1003,8 +1041,11 @@ async function sendChatMessage(text) {
       disableChatHistoryInteractions();
     }
   } catch (err) {
+    // Never surface the raw error (network failure, AI service down, a
+    // malformed response) — the customer doesn't need to know why, just
+    // that something went wrong and how to move past it.
     removeTypingIndicator();
-    appendMessage("bot", err.message || "Sorry, something went wrong. Please try again.");
+    appendChatError(text);
   } finally {
     if (!orderLockedBanner.hidden) return;
     chatInput.disabled = false;

@@ -137,6 +137,28 @@ body {
   display: block;
 }
 
+/* Sits below the chat input bar instead of the overlay header — see
+   index.html, the "Powered by Petpooja" branding moved down here so the
+   header can stay focused on RoboCap's own identity. */
+.chat-ai-disclaimer {
+  margin: 0;
+  padding: 6px 16px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.chat-ai-disclaimer-logo {
+  height: 11px;
+  width: auto;
+  display: block;
+}
+
 /* Per-message mute/unmute toggle — attached only to the bot message
    currently being spoken (see appendMessage/buildMessageTtsToggle), sized
    to sit inline next to its timestamp rather than as a standalone header
@@ -476,6 +498,10 @@ body {
 #view-chat {
   --text: #3a2f28;
   --text-muted: #7a6a5c;
+  /* Without this, the margin around .order-locked-banner (and any other
+     gap between chat-area and the input bar) falls back to .chat-app's
+     cooler --bg instead of the chat window's own cream tone. */
+  background: var(--chat-bg);
 }
 
 /* Opening the chat overlay eases in rather than snapping straight to
