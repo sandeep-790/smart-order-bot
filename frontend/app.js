@@ -31,7 +31,7 @@ const WELCOME_QUICK_REPLIES = [
   "🌶️ spicy dishes",
   "⭐ Show bestsellers",
   "💰 items under ₹200",
-  "Non-veg options",
+  "🍗 Non-veg options",
   "👥 meal for two",
 ];
 
@@ -70,18 +70,6 @@ function iconSvg(imageKey) {
   );
 }
 
-// RoboCap's avatar — one small inline SVG, reused on every bot message bubble.
-const ROBOCAP_AVATAR_SVG =
-  '<svg viewBox="0 0 40 40" width="28" height="28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-  '<circle cx="20" cy="20" r="20" fill="#2f5fa8" />' +
-  '<line x1="20" y1="14" x2="20" y2="9" stroke="#fff" stroke-width="2" stroke-linecap="round" />' +
-  '<circle cx="20" cy="8" r="2" fill="#fff" />' +
-  '<rect x="10" y="14" width="20" height="16" rx="6" fill="#fff" />' +
-  '<circle cx="16" cy="22" r="2.2" fill="#2f5fa8" />' +
-  '<circle cx="24" cy="22" r="2.2" fill="#2f5fa8" />' +
-  '<rect x="15" y="27" width="10" height="2" rx="1" fill="#2f5fa8" />' +
-  "</svg>";
-
 const chatArea = document.getElementById("chatArea");
 const chatForm = document.getElementById("chatForm");
 const chatInput = document.getElementById("chatInput");
@@ -98,7 +86,7 @@ const startOverButton = document.getElementById("startOverButton");
 // (a real <input placeholder> can't be animated). Hidden as soon as the
 // input has real text so it never covers what the customer typed.
 const CHAT_INPUT_PLACEHOLDERS = [
-  "Type a message...",
+  "Ask RoboCap Anything...",
   "Show me today's specials",
   "What's good for breakfast?",
   "Recommend something spicy",
@@ -148,13 +136,13 @@ const ttsAudio = new Audio();
 // inline so a fresh copy can be attached to whichever bot message is
 // currently the one being spoken.
 const MUTE_ICON_ON =
-  '<svg class="mute-icon-on" viewBox="0 0 24 24" width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<svg class="mute-icon-on" viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
   '<path d="M4 10v4h4l5 4V6L8 10H4Z" fill="currentColor" />' +
   '<path d="M17 8a5 5 0 0 1 0 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />' +
   '<path d="M19.5 5.5a9 9 0 0 1 0 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.55" />' +
   "</svg>";
 const MUTE_ICON_OFF =
-  '<svg class="mute-icon-off" viewBox="0 0 24 24" width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<svg class="mute-icon-off" viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
   '<path d="M4 10v4h4l5 4V6L8 10H4Z" fill="currentColor" />' +
   '<line x1="16" y1="9" x2="21" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />' +
   '<line x1="21" y1="9" x2="16" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />' +
@@ -225,11 +213,14 @@ function appendMessage(sender, text, options = {}) {
   row.className = `message-row ${sender}`;
 
   if (sender === "bot") {
-    const avatar = document.createElement("div");
-    avatar.className = "bot-avatar";
-    avatar.innerHTML = ROBOCAP_AVATAR_SVG;
-    row.appendChild(avatar);
+    const nameLabel = document.createElement("span");
+    nameLabel.className = "bot-name-label";
+    nameLabel.textContent = "✦ RoboCap";
+    row.appendChild(nameLabel);
   }
+
+  const bubbleWrap = document.createElement("div");
+  bubbleWrap.className = "bubble-wrap";
 
   const bubble = document.createElement("div");
   bubble.className = "bubble";
@@ -244,6 +235,8 @@ function appendMessage(sender, text, options = {}) {
     bubble.textContent = text;
   }
 
+  // Time (and, for bot messages, the mute toggle) sit below the bubble, not
+  // inside it, so they read as metadata rather than part of the message.
   const meta = document.createElement("div");
   meta.className = "bubble-meta";
   const time = document.createElement("span");
@@ -257,9 +250,10 @@ function appendMessage(sender, text, options = {}) {
     chatArea.querySelector(".message-tts-toggle")?.remove();
     meta.appendChild(buildMessageTtsToggle());
   }
-  bubble.appendChild(meta);
 
-  row.appendChild(bubble);
+  bubbleWrap.appendChild(bubble);
+  bubbleWrap.appendChild(meta);
+  row.appendChild(bubbleWrap);
   chatArea.appendChild(row);
   chatArea.scrollTop = chatArea.scrollHeight;
   return row;
@@ -270,10 +264,10 @@ function showTypingIndicator() {
   row.className = "message-row bot";
   row.id = "typingIndicator";
 
-  const avatar = document.createElement("div");
-  avatar.className = "bot-avatar";
-  avatar.innerHTML = ROBOCAP_AVATAR_SVG;
-  row.appendChild(avatar);
+  const nameLabel = document.createElement("span");
+  nameLabel.className = "bot-name-label";
+  nameLabel.textContent = "✦ RoboCap";
+  row.appendChild(nameLabel);
 
   const bubble = document.createElement("div");
   bubble.className = "bubble";
@@ -338,21 +332,30 @@ const REPLY_ICON_DEFAULT =
   '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
   '<path d="M4 5h16v10H8l-4 4V5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
 
-const REPLY_ICON_RULES = [
-  [/pickup/i, REPLY_ICON_PICKUP],
-  [/delivery/i, REPLY_ICON_DELIVERY],
-  [/dine.?in/i, REPLY_ICON_DINEIN],
-  [/^yes\b|confirm/i, REPLY_ICON_CONFIRM],
-  [/^no\b|change something/i, REPLY_ICON_EDIT],
-  [/mild|medium|spicy/i, REPLY_ICON_CHILI],
-  [/^\d+$/, REPLY_ICON_QUANTITY],
-  [/view cart/i, REPLY_ICON_CART],
-  [/checkout/i, REPLY_ICON_CHECKOUT],
+// Each rule pairs an icon with a "flavor" accent color so quick-reply chips
+// read as a multi-color set (fulfillment options in blue, confirm in mint,
+// spice level in berry, etc.) instead of one uniform accent.
+const REPLY_CHIP_RULES = [
+  [/^half\b|^full\b/i, null, "primary"],
+  [/pickup/i, REPLY_ICON_PICKUP, "blue"],
+  [/delivery/i, REPLY_ICON_DELIVERY, "blue"],
+  [/dine.?in/i, REPLY_ICON_DINEIN, "blue"],
+  [/^yes\b|confirm/i, REPLY_ICON_CONFIRM, "mint"],
+  [/^no\b|change something/i, REPLY_ICON_EDIT, "neutral"],
+  [/mild|medium|spicy/i, REPLY_ICON_CHILI, "berry"],
+  [/^\d+$/, REPLY_ICON_QUANTITY, "amber"],
+  [/view cart/i, REPLY_ICON_CART, "blue"],
+  [/checkout/i, REPLY_ICON_CHECKOUT, "mint"],
 ];
 
 function getReplyOptionIcon(value) {
-  const rule = REPLY_ICON_RULES.find(([pattern]) => pattern.test(value));
+  const rule = REPLY_CHIP_RULES.find(([pattern]) => pattern.test(value));
   return rule ? rule[1] : REPLY_ICON_DEFAULT;
+}
+
+function getReplyOptionFlavor(value) {
+  const rule = REPLY_CHIP_RULES.find(([pattern]) => pattern.test(value));
+  return rule ? rule[2] : "neutral";
 }
 
 // Renders plain-text reply options (fulfillment, confirm, spice level,
@@ -361,19 +364,56 @@ function getReplyOptionIcon(value) {
 // instead of item cards. skipIcon is for the welcome starters, whose
 // labels already carry their own emoji prefix — adding the usual SVG icon
 // on top of that would double up.
+// Welcome starters carry their own leading emoji baked into the label text
+// (e.g. "🧑‍🍳 recommend something") rather than an SVG icon — split it off
+// so it can render in its own colored icon box like every other chip,
+// instead of sitting inline with the text.
+function splitLeadingEmoji(value) {
+  const match = value.match(/^(\S+)\s+(.*)$/);
+  if (!match) return { icon: null, text: value };
+  // Only treat the leading token as an icon if it has no letters — otherwise
+  // it's just the first word of a label with no emoji (e.g. "Non-veg
+  // options" before one was added), not an icon to split off.
+  if (/[a-zA-Z]/.test(match[1])) return { icon: null, text: value };
+  return { icon: match[1], text: match[2] };
+}
+
+// Welcome starters have no semantic category to derive a flavor from (see
+// REPLY_CHIP_RULES), so they just cycle through the palette in order.
+const WELCOME_CHIP_FLAVORS = ["blue", "mint", "amber", "berry", "grape", "neutral"];
+
 function appendReplyOptions(options, { skipIcon = false } = {}) {
   const wrap = document.createElement("div");
   // The welcome starters read as things the customer might say, so they're
   // right-aligned like a user bubble instead of sitting under RoboCap's
   // own reply — skipIcon is unique to that context today.
   wrap.className = skipIcon ? "chat-reply-options chat-reply-options--welcome" : "chat-reply-options";
-  for (const value of options) {
+  options.forEach((value, index) => {
     const chip = document.createElement("button");
     chip.type = "button";
-    chip.className = "chat-reply-option";
-    chip.innerHTML = skipIcon
-      ? `<span>${value}</span>`
-      : `<span class="chat-reply-option-icon">${getReplyOptionIcon(value)}</span><span>${value}</span>`;
+
+    if (skipIcon) {
+      const { icon, text } = splitLeadingEmoji(value);
+      const flavor = WELCOME_CHIP_FLAVORS[index % WELCOME_CHIP_FLAVORS.length];
+      chip.className = "chat-reply-option";
+      chip.innerHTML = icon
+        ? `<span class="chat-reply-option-icon chat-reply-option-icon--${flavor}">${icon}</span><span>${text}</span>`
+        : `<span>${text}</span>`;
+    } else {
+      const flavor = getReplyOptionFlavor(value);
+      // Item-customization prompts (size, etc.) render as plain solid pills
+      // with no icon.
+      if (flavor === "primary") {
+        chip.className = "chat-reply-option chat-reply-option--primary";
+        chip.innerHTML = `<span>${value}</span>`;
+      } else {
+        chip.className = "chat-reply-option";
+        chip.innerHTML =
+          `<span class="chat-reply-option-icon chat-reply-option-icon--${flavor}">${getReplyOptionIcon(value)}</span>` +
+          `<span>${value}</span>`;
+      }
+    }
+
     chip.addEventListener("click", () => {
       // A tapped clarification (size, add-on, spice level, quantity, yes/no,
       // etc.) is only ever valid for the turn it was offered on — once the
@@ -389,15 +429,24 @@ function appendReplyOptions(options, { skipIcon = false } = {}) {
         appendCartSummary();
         return;
       }
-      // Once checkout starts, View Cart no longer fits the flow.
+      // Once checkout starts, the sticky cart bar no longer fits the flow —
+      // hide it until the customer backs out of the review step.
       if (value === "Proceed to checkout") {
         checkoutStarted = true;
         hideOldViewCartChips();
+        updateCartCount();
+      }
+      // Backing out of the final "Yes, confirm" / "No, let me change
+      // something" prompt means the order isn't placed yet — bring the
+      // sticky cart bar back so the customer can get back to their cart.
+      if (value === "No, let me change something") {
+        checkoutStarted = false;
+        updateCartCount();
       }
       sendQuickReply(value);
     });
     wrap.appendChild(chip);
-  }
+  });
   chatArea.appendChild(wrap);
   chatArea.scrollTop = chatArea.scrollHeight;
 }
@@ -423,62 +472,141 @@ function hideOldViewCartChips() {
   });
 }
 
-// Offers a "View Cart" chip in-chat whenever a turn ends with nothing else
-// for the customer to tap and the cart isn't empty — called from every site
-// that would otherwise leave the customer without a clear next step.
-function maybeOfferViewCart() {
-  if (checkoutStarted) return;
-  const onChatTab = document.getElementById("view-chat").classList.contains("active");
-  const count = state.order ? state.order.items.reduce((sum, i) => sum + i.quantity, 0) : 0;
-  if (onChatTab && count > 0) {
-    // Only the latest turn's View Cart chip should ever be tappable —
-    // retire any earlier one before offering this new one.
-    hideOldViewCartChips();
-    appendReplyOptions(["View Cart"]);
-  }
-}
+const TRASH_ICON =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-// Renders the current cart as an in-chat summary block (reusing the same
-// row markup as the Checkout view's renderReview) so tapping "View Cart"
-// keeps the customer on the chat tab instead of jumping to a separate view.
+// Renders the current cart as an in-chat summary block — appended once,
+// then re-rendered in place by changeChatCartItemQuantity whenever a line
+// is adjusted, so tapping "View Cart" keeps the customer on the chat tab
+// instead of jumping to a separate view.
 async function appendCartSummary() {
   const block = document.createElement("div");
   block.className = "chat-cart-summary";
-  block.innerHTML = '<span class="chat-item-add-status">Loading cart…</span>';
   chatArea.appendChild(block);
+  await renderCartSummaryBlock(block);
   chatArea.scrollTop = chatArea.scrollHeight;
+}
 
+async function renderCartSummaryBlock(block) {
+  block.innerHTML = '<span class="chat-item-add-status">Loading cart…</span>';
   try {
     const data = await apiGet("/api/order/review");
     const review = data.review;
+    const count = review.items.reduce((sum, i) => sum + i.quantity, 0);
+
     const itemRows = review.items
       .map((item) => {
         const addOnNames = (item.addOns || []).map((a) => a.name);
         const details = [item.size, ...item.options, ...addOnNames].filter(Boolean).join(" · ");
         return `
-          <div class="review-item-row">
+          <div class="review-item-row" data-line-id="${item.lineId}">
             <div class="review-item-main">
-              ${item.quantity}x ${item.name}
+              <span class="review-item-name">${item.name}</span>
               ${details ? `<span class="review-item-detail">${details}</span>` : ""}
               ${item.notes ? `<span class="review-item-detail">Note: ${item.notes}</span>` : ""}
             </div>
-            <div class="review-item-price">${formatMoney(item.lineTotal)}</div>
+            <div class="review-item-controls">
+              <div class="chat-item-qty-stepper">
+                <button type="button" data-action="decrease" aria-label="Decrease quantity">−</button>
+                <span>${item.quantity}</span>
+                <button type="button" data-action="increase" aria-label="Increase quantity">+</button>
+              </div>
+              <span class="review-item-price">${formatMoney(item.lineTotal)}</span>
+              <button type="button" class="review-item-remove" data-action="remove" aria-label="Remove ${escapeHtml(item.name)}">${TRASH_ICON}</button>
+            </div>
           </div>
         `;
       })
       .join("");
 
     block.innerHTML = `
+      <div class="chat-cart-summary-header">
+        <span>Order Summary</span>
+        <span class="chat-cart-summary-count">${count} item${count === 1 ? "" : "s"}</span>
+      </div>
       <div class="review-items">${itemRows || '<p class="empty-state">No items yet.</p>'}</div>
-      <p class="chat-cart-summary-total">Total: ${formatMoney(review.pricing.total)}</p>
+      ${
+        review.items.length > 0
+          ? `<div class="chat-cart-summary-price-rows">
+              <div class="chat-cart-summary-price-row">
+                <span>Subtotal</span>
+                <span>${formatMoney(review.pricing.subtotal)}</span>
+              </div>
+              ${
+                review.pricing.discount > 0
+                  ? `<div class="chat-cart-summary-price-row">
+                      <span>Discount</span>
+                      <span>−${formatMoney(review.pricing.discount)}</span>
+                    </div>`
+                  : ""
+              }
+              <div class="chat-cart-summary-price-row">
+                <span>Tax</span>
+                <span>${formatMoney(review.pricing.tax)}</span>
+              </div>
+              ${
+                review.pricing.deliveryFee > 0
+                  ? `<div class="chat-cart-summary-price-row">
+                      <span>Delivery fee</span>
+                      <span>${formatMoney(review.pricing.deliveryFee)}</span>
+                    </div>`
+                  : ""
+              }
+            </div>`
+          : ""
+      }
+      <div class="chat-cart-summary-total-row">
+        <span>Total</span>
+        <span>${formatMoney(review.pricing.total)}</span>
+      </div>
+      ${review.items.length > 0 ? '<button type="button" class="chat-cart-summary-place-btn">Place order →</button>' : ""}
     `;
-    chatArea.scrollTop = chatArea.scrollHeight;
 
-    if (review.items.length > 0) {
-      appendReplyOptions(["Proceed to checkout"]);
+    block.querySelectorAll(".review-item-row").forEach((row) => {
+      const lineId = row.dataset.lineId;
+      const item = review.items.find((i) => String(i.lineId) === lineId);
+      row
+        .querySelector('[data-action="increase"]')
+        .addEventListener("click", () => changeChatCartItemQuantity(lineId, item.quantity + 1, block));
+      row
+        .querySelector('[data-action="decrease"]')
+        .addEventListener("click", () => changeChatCartItemQuantity(lineId, item.quantity - 1, block));
+      row
+        .querySelector('[data-action="remove"]')
+        .addEventListener("click", () => changeChatCartItemQuantity(lineId, 0, block));
+    });
+
+    const placeButton = block.querySelector(".chat-cart-summary-place-btn");
+    if (placeButton) {
+      placeButton.addEventListener("click", () => {
+        disableStaleReplyOptions();
+        checkoutStarted = true;
+        hideOldViewCartChips();
+        updateCartCount();
+        sendQuickReply("Proceed to checkout");
+      });
     }
   } catch (err) {
     block.innerHTML = `<span class="chat-item-add-status chat-item-add-status--error">${escapeHtml(err.message)}</span>`;
+  }
+}
+
+// Shared by every qty +/-/remove control inside an in-chat cart summary —
+// reuses the same PATCH/DELETE endpoints as the Cart view's changeItemQuantity,
+// then re-renders this block in place and keeps the sticky cart bar in sync.
+async function changeChatCartItemQuantity(lineId, newQty, block) {
+  try {
+    if (newQty < 1) {
+      await apiSend("DELETE", `/api/order/items/${lineId}`);
+    } else {
+      await apiSend("PATCH", `/api/order/items/${lineId}`, { quantity: newQty });
+    }
+    updateCartCount();
+    await renderCartSummaryBlock(block);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  } catch (err) {
+    alert(err.message);
   }
 }
 
@@ -527,6 +655,18 @@ function appendComparisonCards(items) {
 // Shared portrait card — photo on top, details below, Add control at the
 // bottom — used both for plain item lists and for side-by-side comparisons
 // so the two look identical apart from the VS badge.
+// Small square-with-dot mark — the standard Indian veg/non-veg food symbol —
+// used inline next to the item name instead of a text badge.
+function dietaryIcon(isVeg) {
+  const color = isVeg ? "#2a7a2a" : "#a0442a";
+  return (
+    `<svg class="dietary-icon" viewBox="0 0 16 16" width="12" height="12" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img">` +
+    `<title>${isVeg ? "Vegetarian" : "Non-vegetarian"}</title>` +
+    `<rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="${color}" stroke-width="1.5"/>` +
+    `<circle cx="8" cy="8" r="3.4" fill="${color}"/></svg>`
+  );
+}
+
 function buildChatItemCard(item) {
   const card = document.createElement("div");
   card.className = "chat-compare-card";
@@ -536,12 +676,9 @@ function buildChatItemCard(item) {
   // "gluten-free" without the literal "vegetarian" string, so treat
   // "not tagged non-vegetarian" as the veg signal rather than requiring
   // an exact "vegetarian" match.
+  const isVeg = !(item.dietary && item.dietary.includes("non-vegetarian"));
+
   const badges = [];
-  if (item.dietary && item.dietary.includes("non-vegetarian")) {
-    badges.push('<span class="badge badge-nonveg">Non-veg</span>');
-  } else {
-    badges.push('<span class="badge badge-veg">Veg</span>');
-  }
   if (item.bestseller) badges.push('<span class="badge badge-bestseller">Bestseller</span>');
   if (item.spicy) badges.push('<span class="badge badge-spicy">🌶️ Spicy</span>');
   if (item.recommended) badges.push('<span class="badge badge-recommended">Recommended</span>');
@@ -549,11 +686,11 @@ function buildChatItemCard(item) {
   card.innerHTML = `
     <div class="chat-compare-card-image">${iconSvg(item.image)}</div>
     <div class="chat-compare-card-details">
+      ${badges.length > 0 ? `<div class="chat-item-row-badges">${badges.join("")}</div>` : ""}
       <div class="chat-item-row-top">
-        <span class="chat-item-row-name">${item.label}</span>
+        <span class="chat-item-row-name">${dietaryIcon(isVeg)}${item.label}</span>
         ${item.price != null ? `<span class="chat-item-row-price">₹${Number(item.price).toFixed(0)}</span>` : ""}
       </div>
-      ${badges.length > 0 ? `<div class="chat-item-row-badges">${badges.join("")}</div>` : ""}
       ${item.description ? `<p class="chat-item-row-desc">${truncateWords(item.description, 10)}</p>` : ""}
       <div class="chat-item-row-action"></div>
     </div>
@@ -577,7 +714,7 @@ function buildAddControl(item) {
     const addButton = document.createElement("button");
     addButton.type = "button";
     addButton.className = "chat-item-add-button";
-    addButton.textContent = "Add";
+    addButton.innerHTML = '<span aria-hidden="true">+</span> Add';
     addButton.addEventListener("click", renderStepper);
     wrap.appendChild(addButton);
   }
@@ -636,7 +773,11 @@ async function confirmChatItemAdd(item, quantity, wrap, resetToIdle) {
       sendChatMessage(item.value);
       return;
     }
-    wrap.innerHTML = '<span class="chat-item-add-status chat-item-add-status--success">Added ✓</span>';
+    wrap.innerHTML =
+      '<span class="chat-item-add-status chat-item-add-status--success">' +
+      '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+      '<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      "<span>Added</span></span>";
     updateCartCount();
     // On the customer's first item this session, the backend attaches 1-2
     // pairing suggestions as item cards — pitch them by name so the message
@@ -653,8 +794,6 @@ async function confirmChatItemAdd(item, quantity, wrap, resetToIdle) {
     chatHistory.push({ role: "assistant", content: summary });
     if (pairs.length > 0) {
       appendItemList(pairs);
-    } else {
-      maybeOfferViewCart();
     }
     setTimeout(resetToIdle, 1800);
   } catch (err) {
@@ -689,7 +828,9 @@ function lockChatInput(locked) {
 // place rather than removing them, so the transcript still reads correctly.
 function disableChatHistoryInteractions() {
   chatArea
-    .querySelectorAll(".chat-reply-option, .chat-item-add-button, .chat-item-qty-stepper button, .chat-item-qty-confirm")
+    .querySelectorAll(
+      ".chat-reply-option, .chat-item-add-button, .chat-item-qty-stepper button, .chat-item-qty-confirm, .chat-cart-summary-place-btn, .review-item-remove"
+    )
     .forEach((el) => {
       el.disabled = true;
     });
@@ -722,8 +863,6 @@ async function sendChatMessage(text) {
       }
     } else if (Array.isArray(data.quickReplies) && data.quickReplies.length > 0) {
       appendReplyOptions(data.quickReplies);
-    } else {
-      maybeOfferViewCart();
     }
     // Tool calls this turn may have changed the order — reflect it everywhere.
     updateCartCount();
@@ -1069,10 +1208,14 @@ function initRobocapFloater() {
     moved = Math.max(moved, Math.hypot(dx, dy));
 
     const appRect = appEl.getBoundingClientRect();
+    // Never let the bubble sit on or above the Menu/Orders tab bar — the
+    // top of its drag range is the tab bar's own bottom edge, not the app
+    // frame's top.
+    const minTop = tabBar.getBoundingClientRect().bottom - appRect.top;
     const maxLeft = appRect.width - robocapFloater.offsetWidth;
     const maxTop = appRect.height - robocapFloater.offsetHeight;
     const newLeft = Math.min(Math.max(startLeft + dx, 0), Math.max(maxLeft, 0));
-    const newTop = Math.min(Math.max(startTop + dy, 0), Math.max(maxTop, 0));
+    const newTop = Math.min(Math.max(startTop + dy, minTop), Math.max(maxTop, minTop));
 
     robocapFloater.style.right = "auto";
     robocapFloater.style.left = `${newLeft}px`;
@@ -1098,7 +1241,7 @@ function initRobocapFloater() {
     // to whichever side (left/right) its center ended up closer to, same
     // as a typical chat-head bubble.
     const appRect = appEl.getBoundingClientRect();
-    const margin = 16;
+    const margin = 1;
     const floaterWidth = robocapFloater.offsetWidth;
     const currentLeft = parseFloat(robocapFloater.style.left) || 0;
     const centerX = currentLeft + floaterWidth / 2;
@@ -1108,6 +1251,17 @@ function initRobocapFloater() {
 
   robocapFloater.addEventListener("pointerup", endDrag);
   robocapFloater.addEventListener("pointercancel", endDrag);
+
+  // The CSS default `top` is a fixed guess — correct it once up front in
+  // case the tab bar renders taller than that on this device, so the
+  // bubble never starts out sitting on top of it.
+  const appRect = appEl.getBoundingClientRect();
+  const minTop = tabBar.getBoundingClientRect().bottom - appRect.top;
+  const floaterRect = robocapFloater.getBoundingClientRect();
+  const currentTop = floaterRect.top - appRect.top;
+  if (currentTop < minTop) {
+    robocapFloater.style.top = `${minTop + 12}px`;
+  }
 }
 initRobocapFloater();
 
@@ -1125,7 +1279,32 @@ function updateCartCount() {
   // transcript — pad the scroll area so the last message can still scroll
   // fully into view above it instead of being covered.
   chatArea.classList.toggle("chat-area--fab-padding", !floatingCartButton.hidden);
+  updateChatCartBar(count);
 }
+
+const chatCartBar = document.getElementById("chatCartBar");
+const chatCartBarCount = document.getElementById("chatCartBarCount");
+const chatCartBarTotal = document.getElementById("chatCartBarTotal");
+const chatCartBarButton = document.getElementById("chatCartBarButton");
+
+// A persistent bar pinned above the chat input whenever the cart has
+// items — a second, always-visible entry point into the same in-chat cart
+// summary the "View Cart" chip already offers (see appendCartSummary).
+function updateChatCartBar(count) {
+  const itemCount = count != null ? count : state.order ? state.order.items.reduce((sum, i) => sum + i.quantity, 0) : 0;
+  // Hidden once checkout starts (see the "Proceed to checkout" / "No, let
+  // me change something" handling in appendReplyOptions) so it doesn't
+  // compete with the review/confirm flow — it comes back if the customer
+  // backs out before the order is actually placed.
+  chatCartBar.hidden = itemCount === 0 || checkoutStarted;
+  if (chatCartBar.hidden) return;
+  chatCartBarCount.textContent = String(itemCount);
+  chatCartBarTotal.textContent = formatMoney(state.order.total);
+}
+
+chatCartBarButton.addEventListener("click", () => {
+  appendCartSummary();
+});
 
 // The RoboCap floater is a Menu/Orders-only affordance, same rule as the
 // floating cart pill — hidden while the chat overlay itself (or Cart/

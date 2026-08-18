@@ -966,6 +966,7 @@ function summarizeEligiblePromotions(order) {
 // pricing breakdown — plus whether the order actually has everything it needs.
 function buildOrderReview(order) {
   const items = order.items.map((item) => ({
+    lineId: item.lineId,
     name: item.name,
     size: item.size,
     quantity: item.quantity,

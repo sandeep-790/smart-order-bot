@@ -1,0 +1,14 @@
+{
+  "id": "session-1787053211036",
+  "startedAt": "2026-08-18T11:40:11.036Z",
+  "cwd": "/Users/sandeep/Documents/Claude/Projects/cafebot",
+  "context": {},
+  "metrics": {
+    "edits": 2,
+    "commands": 0,
+    "tasks": 0,
+    "errors": 0
+  },
+  "endedAt": "2026-08-18T11:59:06.850Z",
+  "duration": 1135817
+}

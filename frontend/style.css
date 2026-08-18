@@ -9,6 +9,27 @@
   --accent: #2f5fa8;
   --border: #dbe4ee;
   --radius: 16px;
+
+  /* Multi-color "flavor" accents for quick-reply chips — reuses the same
+     hex pairs as the item badges below so the two systems read as one
+     continuous palette. */
+  --flavor-blue-bg: #e8f0fa;
+  --flavor-blue-text: #2f5fa8;
+  --flavor-mint-bg: #e1f3e1;
+  --flavor-mint-text: #2a7a2a;
+  --flavor-amber-bg: #fbe7c6;
+  --flavor-amber-text: #8a5a1f;
+  --flavor-berry-bg: #f7dfda;
+  --flavor-berry-text: #a0442a;
+  --flavor-grape-bg: #ece1f7;
+  --flavor-grape-text: #6a3fa0;
+  --flavor-neutral-bg: #eef1f5;
+  --flavor-neutral-text: #55637a;
+
+  /* Warm cream background used specifically inside the RoboCap chat window
+     (conversation area, input bar, item card image slots) — the rest of
+     the app (Menu/Orders) keeps the cooler --bg tone above. */
+  --chat-bg: #fbf0e1;
 }
 
 * {
@@ -122,8 +143,8 @@ body {
    control. */
 .message-tts-toggle {
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: none;
   background: transparent;
@@ -212,6 +233,13 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+}
+
+/* Menu and Orders share the same warm cream background as the RoboCap
+   chat window for a consistent look across the app. */
+#tab-menu,
+#tab-orders {
+  background: var(--chat-bg);
 }
 
 .empty-state {
@@ -345,19 +373,19 @@ body {
 .robocap-floater {
   position: absolute;
   right: 16px;
-  top: 96px;
+  top: 120px;
   width: 76px;
   height: 76px;
   border-radius: 50%;
-  border: none;
-  background: var(--accent);
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  background: linear-gradient(145deg, #4577d1, #244c8a);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
   cursor: grab;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 22px rgba(36, 76, 138, 0.45), 0 2px 6px rgba(0, 0, 0, 0.2);
   touch-action: none;
   z-index: 22;
   /* Only the position animates (the snap-to-edge on release) — dragging
@@ -405,10 +433,20 @@ body {
   line-height: 0;
 }
 
+.robocap-overlay-title-text {
+  min-width: 0;
+}
+
 .robocap-overlay-title h1 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+}
+
+.robocap-overlay-title-text p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .robocap-overlay-header-right {
@@ -432,6 +470,14 @@ body {
   flex-shrink: 0;
 }
 
+/* RoboCap chat window uses a warmer charcoal-brown text tone than the rest
+   of the app (Menu/Orders keep the cooler --text above) to match the warm
+   cream chat background. */
+#view-chat {
+  --text: #3a2f28;
+  --text-muted: #7a6a5c;
+}
+
 /* Chat area */
 .chat-area {
   flex: 1;
@@ -440,6 +486,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  background: var(--chat-bg);
   transition: padding-bottom 0.15s ease;
 }
 
@@ -466,21 +513,33 @@ body {
   justify-content: flex-end;
 }
 
-.bot-avatar {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+.bot-name-label {
+  display: block;
+  margin: 0 0 4px 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.01em;
 }
 
-.bot-avatar svg {
-  display: block;
+/* Wraps the bubble and its meta row (time + mute toggle) so the meta sits
+   below the bubble, not inside it, while still tracking the bubble's width
+   and side (left for bot, right for user). */
+.bubble-wrap {
+  display: flex;
+  flex-direction: column;
+  max-width: 75%;
+}
+
+.message-row.bot .bubble-wrap {
+  align-items: flex-start;
+}
+
+.message-row.user .bubble-wrap {
+  align-items: flex-end;
 }
 
 .bubble {
-  max-width: 75%;
   padding: 10px 14px;
   border-radius: var(--radius);
   font-size: 14px;
@@ -493,7 +552,7 @@ body {
   background: var(--bot-bubble);
   color: var(--text);
   border: 1px solid var(--border);
-  border-bottom-left-radius: 4px;
+  border-top-left-radius: 4px;
 }
 
 .message-row.user .bubble {
@@ -548,6 +607,44 @@ body {
   }
 }
 
+/* Sticky cart bar — pinned above the input, a second always-visible way
+   into the same in-chat cart summary the "View Cart" chip already opens
+   (see appendCartSummary / chatCartBarButton in app.js). */
+.chat-cart-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--flavor-blue-bg);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chat-cart-bar-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--flavor-blue-text);
+  font-size: 13px;
+}
+
+.chat-cart-bar-info svg {
+  flex-shrink: 0;
+}
+
+.chat-cart-bar-button {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 /* Input bar */
 .chat-input-bar {
   display: flex;
@@ -556,6 +653,7 @@ body {
   padding: 12px;
   background: var(--surface);
   border-top: 1px solid var(--border);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
   flex-shrink: 0;
 }
 
@@ -571,7 +669,7 @@ body {
   border-radius: 999px;
   font-size: 16px;
   outline: none;
-  background: var(--bg);
+  background: var(--chat-bg);
   color: var(--text);
 }
 
@@ -708,11 +806,23 @@ body {
    Two per row, same portrait card shape as a comparison card (see
    .chat-compare-card below — both are built by buildChatItemCard). */
 .chat-item-list {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: flex;
+  flex-shrink: 0;
   gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
   margin: 0 0 10px 0;
   max-width: 100%;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.chat-item-list::-webkit-scrollbar {
+  display: none;
+}
+
+.chat-item-list .chat-compare-card {
+  flex: 0 0 179px;
 }
 
 /* Real menu photos (menu.json "image" pointing at frontend/assets/menu/*)
@@ -733,8 +843,15 @@ body {
 }
 
 .chat-item-row-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 13px;
   font-weight: 700;
+}
+
+.dietary-icon {
+  flex-shrink: 0;
 }
 
 .chat-item-row-price {
@@ -748,7 +865,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .badge {
@@ -758,16 +875,6 @@ body {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.01em;
-}
-
-.badge-veg {
-  background: #e1f3e1;
-  color: #2a7a2a;
-}
-
-.badge-nonveg {
-  background: #f7dfda;
-  color: #a0442a;
 }
 
 .badge-bestseller {
@@ -858,7 +965,9 @@ body {
 .chat-reply-option:disabled,
 .chat-item-add-button:disabled,
 .chat-item-qty-stepper button:disabled,
-.chat-item-qty-confirm:disabled {
+.chat-item-qty-confirm:disabled,
+.chat-cart-summary-place-btn:disabled,
+.review-item-remove:disabled {
   opacity: 0.45;
   cursor: not-allowed;
   pointer-events: none;
@@ -871,12 +980,23 @@ body {
   white-space: nowrap;
 }
 
+.chat-item-add-status--success,
+.chat-item-add-status--error {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+}
+
 .chat-item-add-status--success {
-  color: #2a7a2a;
+  background: var(--flavor-mint-bg);
+  color: var(--flavor-mint-text);
 }
 
 .chat-item-add-status--error {
-  color: #a02020;
+  background: var(--flavor-berry-bg);
+  color: var(--flavor-berry-text);
 }
 
 /* In-chat reply options (fulfillment, confirm, spice level, quantity, View
@@ -892,56 +1012,203 @@ body {
 }
 
 /* Welcome starters read as things the customer might say, so they sit on
-   the right like a user bubble instead of under RoboCap's own message. */
+   the right, like a user bubble, instead of under RoboCap's own message. */
 .chat-reply-options--welcome {
   justify-content: flex-end;
   align-items: flex-end;
   margin-left: auto;
 }
 
+/* Every reply chip — welcome starter or categorized (fulfillment, confirm,
+   spice level, etc.) — shares the same white/cream pill with a soft border;
+   the color now lives on the icon's own square (see .chat-reply-option-icon
+   below), not the whole chip, except the solid .chat-reply-option--primary
+   size pills. */
 .chat-reply-option {
   display: flex;
+  flex-shrink: 0;
+  white-space: nowrap;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: 8px;
+  padding: 8px 14px 8px 8px;
   border-radius: 999px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--border);
   background: var(--surface);
-  color: var(--accent);
+  color: var(--text);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
-  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .chat-reply-option:hover {
+  background: var(--chat-bg);
+  border-color: var(--text-muted);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.14);
+}
+
+/* The small colored square behind each chip's icon/emoji — this is what
+   carries the chip's "flavor" now, e.g. blue for fulfillment, mint for
+   confirm, berry for spice level. Welcome starters cycle through the same
+   palette in order (see WELCOME_CHIP_FLAVORS in app.js). */
+.chat-reply-option-icon {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.chat-reply-option-icon--blue {
+  background: var(--flavor-blue-bg);
+  color: var(--flavor-blue-text);
+}
+.chat-reply-option-icon--mint {
+  background: var(--flavor-mint-bg);
+  color: var(--flavor-mint-text);
+}
+.chat-reply-option-icon--amber {
+  background: var(--flavor-amber-bg);
+  color: var(--flavor-amber-text);
+}
+.chat-reply-option-icon--berry {
+  background: var(--flavor-berry-bg);
+  color: var(--flavor-berry-text);
+}
+.chat-reply-option-icon--grape {
+  background: var(--flavor-grape-bg);
+  color: var(--flavor-grape-text);
+}
+.chat-reply-option-icon--neutral {
+  background: var(--flavor-neutral-bg);
+  color: var(--flavor-neutral-text);
+}
+
+/* Item-customization prompts (size, etc.) — solid pill, no outline, no
+   icon (see appendReplyOptions), closer to a real button than a tag. */
+.chat-reply-option--primary {
+  padding: 8px 14px;
+  border: none;
   background: var(--accent);
   color: #fff;
-  transform: translateY(-1px);
-  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18);
+  font-weight: 700;
+  box-shadow: 0 3px 10px rgba(47, 95, 168, 0.28);
+}
+.chat-reply-option--primary:hover {
+  background: #244c8a;
+  color: #fff;
+  border-color: transparent;
 }
 
-.chat-reply-option-icon {
-  display: flex;
-  line-height: 0;
-}
-
-/* In-chat cart summary (View Cart chip) — reuses the .review-item-row
-   pattern from the Checkout view so item rows look consistent. */
+/* In-chat cart summary (View Cart chip / sticky cart bar) — reuses the
+   .review-item-row pattern from the Checkout view for the base row shape,
+   with its own layout below for the interactive qty stepper/remove
+   controls, scoped under .chat-cart-summary so the read-only Checkout
+   view rows are unaffected. */
 .chat-cart-summary {
   margin: 0 0 10px 0;
   max-width: 88%;
-  padding: 10px 12px;
+  padding: 14px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
 
-.chat-cart-summary-total {
-  margin: 6px 0 0;
+.chat-cart-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 11px;
   font-weight: 700;
-  text-align: right;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.chat-cart-summary .review-item-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.chat-cart-summary .review-item-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-cart-summary .review-item-name {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.chat-cart-summary .review-item-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chat-cart-summary .review-item-price {
+  margin-left: auto;
+}
+
+.review-item-remove {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  color: var(--flavor-berry-text);
+  cursor: pointer;
+}
+
+.chat-cart-summary-price-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.chat-cart-summary-price-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.chat-cart-summary-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  font-weight: 700;
+}
+
+.chat-cart-summary-place-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chat-cart-summary-place-btn:hover {
+  background: #244c8a;
 }
 
 /* Side-by-side "VS" comparison — two portrait cards (image on top, details
@@ -975,12 +1242,13 @@ body {
    .chat-compare-card's own border-radius + overflow:hidden clips the
    banner's top corners to match, so no radius is needed here. */
 .chat-compare-card-image {
+  position: relative;
   width: 100%;
   height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg);
+  background: var(--chat-bg);
 }
 
 .chat-compare-card-image svg {
@@ -1034,8 +1302,8 @@ body {
   gap: 10px;
   margin: 0 16px 12px;
   padding: 12px 14px;
-  background: #eef7ee;
-  border: 1px solid #c9e6c9;
+  background: var(--flavor-mint-bg);
+  border: 1px solid var(--flavor-mint-text);
   border-radius: var(--radius);
   font-size: 13px;
   flex-shrink: 0;
@@ -1044,13 +1312,14 @@ body {
 .order-locked-banner p {
   margin: 0;
   font-weight: 600;
+  color: var(--flavor-mint-text);
 }
 
 .order-locked-banner button {
   padding: 8px 14px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--flavor-mint-text);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
