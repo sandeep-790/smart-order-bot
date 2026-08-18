@@ -297,8 +297,13 @@ function removeTypingIndicator() {
   if (el) el.remove();
 }
 
-function sendQuickReply(value) {
-  appendMessage("user", value);
+// displayText lets the user bubble read differently from the actual
+// message sent to the AI — e.g. the cart summary's "Place order" button
+// shows "Place order" in the transcript while still sending the exact
+// "Proceed to checkout" phrase the system prompt expects to trigger the
+// checkout flow.
+function sendQuickReply(value, displayText) {
+  appendMessage("user", displayText || value);
   sendChatMessage(value);
 }
 
@@ -475,6 +480,13 @@ function disableStaleReplyOptions() {
   chatArea.querySelectorAll(".chat-reply-options:not(.chat-reply-options--welcome) .chat-reply-option").forEach((c) => {
     c.disabled = true;
   });
+  // A cart summary's "Place order" button is only ever valid for the cart
+  // state it was rendered against — once the conversation moves forward
+  // (including tapping this same button), any earlier one still in the
+  // scrollback is stale.
+  chatArea.querySelectorAll(".chat-cart-summary-place-btn").forEach((btn) => {
+    btn.disabled = true;
+  });
 }
 
 // Hides every View Cart chip currently sitting in the scrollback — called
@@ -598,7 +610,7 @@ async function renderCartSummaryBlock(block) {
         checkoutStarted = true;
         hideOldViewCartChips();
         updateCartCount();
-        sendQuickReply("Proceed to checkout");
+        sendQuickReply("Proceed to checkout", "Place order");
       });
     }
   } catch (err) {
