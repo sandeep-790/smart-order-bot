@@ -340,6 +340,98 @@ body {
   color: var(--accent);
 }
 
+/* Draggable RoboCap floater — opens the chat overlay on tap, repositions
+   anywhere within .chat-app on drag (see initRobocapFloater in app.js). */
+.robocap-floater {
+  position: absolute;
+  right: 16px;
+  top: 96px;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: grab;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  touch-action: none;
+  z-index: 22;
+  /* Only the position animates (the snap-to-edge on release) — dragging
+     itself stays instant, see .dragging below. */
+  transition: left 0.25s ease, right 0.25s ease, top 0.15s ease;
+}
+
+.robocap-floater-label {
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.robocap-floater.dragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+/* RoboCap overlay header — its own header ("a new window"), distinct from
+   the main .chat-header which is hidden for as long as this is open (see
+   showView in app.js). Same visual language as .chat-header, but with the
+   icon+title and Powered-by+close split into two end groups. */
+.robocap-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.robocap-overlay-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.robocap-overlay-icon {
+  display: flex;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.robocap-overlay-title h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.robocap-overlay-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.overlay-close-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* Chat area */
 .chat-area {
   flex: 1;

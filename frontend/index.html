@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="chat-app">
-    <header class="chat-header">
+    <header class="chat-header" id="mainHeader">
       <div class="chat-header-avatar">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
@@ -27,19 +27,7 @@
     </header>
 
     <nav class="tab-bar" id="tabBar">
-      <button type="button" class="tab-button active" data-tab="chat">
-        <span class="tab-icon">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <rect x="4" y="8" width="16" height="12" rx="4" stroke="currentColor" stroke-width="2"/>
-            <circle cx="9" cy="14" r="1.4" fill="currentColor"/>
-            <circle cx="15" cy="14" r="1.4" fill="currentColor"/>
-            <line x1="12" y1="8" x2="12" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <circle cx="12" cy="3" r="1.3" fill="currentColor"/>
-          </svg>
-        </span>
-        RoboCap
-      </button>
-      <button type="button" class="tab-button" data-tab="menu">
+      <button type="button" class="tab-button active" data-tab="menu">
         <span class="tab-icon">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <path d="M6 2v8a2 2 0 0 0 2 2v10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -62,8 +50,36 @@
       </button>
     </nav>
 
-    <!-- SmartOrder tab: real AI chat, wired to the same order as the guided UI. -->
-    <section class="tab-panel active" id="tab-chat">
+    <!-- RoboCap chat: a pushed view (not a tab) reached via the draggable floater. -->
+    <section class="tab-panel pushed-view" id="view-chat">
+      <header class="robocap-overlay-header">
+        <div class="robocap-overlay-title">
+          <span class="robocap-overlay-icon">
+            <svg viewBox="0 0 40 40" width="28" height="28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="20" cy="20" r="20" fill="#2f5fa8" />
+              <line x1="20" y1="14" x2="20" y2="9" stroke="#fff" stroke-width="2" stroke-linecap="round" />
+              <circle cx="20" cy="8" r="2" fill="#fff" />
+              <rect x="10" y="14" width="20" height="16" rx="6" fill="#fff" />
+              <circle cx="16" cy="22" r="2.2" fill="#2f5fa8" />
+              <circle cx="24" cy="22" r="2.2" fill="#2f5fa8" />
+              <rect x="15" y="27" width="10" height="2" rx="1" fill="#2f5fa8" />
+            </svg>
+          </span>
+          <h1>RoboCap</h1>
+        </div>
+        <div class="robocap-overlay-header-right">
+          <div class="powered-by">
+            <span>Powered by</span>
+            <img src="assets/petpooja-logo.png" alt="Petpooja" onerror="this.closest('.powered-by').hidden = true" />
+          </div>
+          <button type="button" id="chatCloseButton" class="overlay-close-button" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <line x1="5" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <line x1="19" y1="5" x2="5" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+      </header>
       <main class="chat-area" id="chatArea" role="log" aria-live="polite">
         <!-- Messages are inserted here -->
       </main>
@@ -238,6 +254,18 @@
         <path d="M2.5 3h2l2.2 12.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 8H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       View Cart <span class="cart-count" id="floatingCartCount">0</span>
+    </button>
+
+    <button type="button" id="robocapFloater" class="robocap-floater" aria-label="Open RoboCap chat">
+      <svg viewBox="0 0 40 40" width="26" height="26" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <line x1="20" y1="14" x2="20" y2="9" stroke="#fff" stroke-width="2" stroke-linecap="round" />
+        <circle cx="20" cy="8" r="2" fill="#fff" />
+        <rect x="10" y="14" width="20" height="16" rx="6" fill="#fff" />
+        <circle cx="16" cy="22" r="2.2" fill="#2f5fa8" />
+        <circle cx="24" cy="22" r="2.2" fill="#2f5fa8" />
+        <rect x="15" y="27" width="10" height="2" rx="1" fill="#2f5fa8" />
+      </svg>
+      <span class="robocap-floater-label">RoboCap</span>
     </button>
   </div>
 

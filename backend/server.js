@@ -583,6 +583,7 @@ async function runAiTurn(history, message, order, activeSessionId) {
   let quickReplies = null;
   let isComparison = false;
   let isOrderSummary = false;
+  let isPairingSuggestion = false;
   let orderJustConfirmed = false;
 
   for (let step = 0; step < MAX_TOOL_CALL_STEPS; step++) {
@@ -621,7 +622,7 @@ async function runAiTurn(history, message, order, activeSessionId) {
     }
 
     if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-      return { reply: assistantMessage.content || "", quickReplies, isComparison, isOrderSummary, orderJustConfirmed };
+      return { reply: assistantMessage.content || "", quickReplies, isComparison, isOrderSummary, isPairingSuggestion, orderJustConfirmed };
     }
 
     conversation.push(assistantMessage);
@@ -638,13 +639,14 @@ async function runAiTurn(history, message, order, activeSessionId) {
 
       // The most recent tool result carrying quickReplies wins — that's
       // the choice actually relevant to what the customer should do next.
-      // isComparison/isOrderSummary ride along with it so a stale flag from
-      // an earlier tool call in this same turn can't leak into a later,
-      // unrelated one.
+      // isComparison/isOrderSummary/isPairingSuggestion ride along with it
+      // so a stale flag from an earlier tool call in this same turn can't
+      // leak into a later, unrelated one.
       if (result.quickReplies) {
         quickReplies = result.quickReplies;
         isComparison = Boolean(result.isComparison);
         isOrderSummary = Boolean(result.isOrderSummary);
+        isPairingSuggestion = Boolean(result.isPairingSuggestion);
       }
       if (result.orderConfirmed) orderJustConfirmed = true;
 
@@ -1177,15 +1179,17 @@ function addItemToOrder(order, { itemId, size, quantity, options, addOns, notes 
   // A one-time nudge on the customer's first item this session — never
   // repeated on later adds, so it doesn't get naggy.
   let quickReplies = null;
+  let isPairingSuggestion = false;
   if (wasEmpty) {
     const pairs = getPairingSuggestions(order, 2);
     if (pairs.length > 0) {
       quickReplies = buildItemQuickReplies(pairs, { recommended: true });
+      isPairingSuggestion = true;
       reply += ` You might also like: ${pairs.map((p) => p.name).join(" and ")}.`;
     }
   }
 
-  return { reply, quickReplies };
+  return { reply, quickReplies, isPairingSuggestion };
 }
 
 // Validates a requested list of add-on option names against a menu item's
@@ -1674,7 +1678,12 @@ app.post("/api/chat", async (req, res) => {
   const activeSessionId = resolved.sessionId;
   const order = getOrCreateOrder(activeSessionId);
 
-  const { reply, quickReplies, isComparison, isOrderSummary, orderJustConfirmed } = await runAiTurn(history, message, order, activeSessionId);
+  const { reply, quickReplies, isComparison, isOrderSummary, isPairingSuggestion, orderJustConfirmed } = await runAiTurn(
+    history,
+    message,
+    order,
+    activeSessionId
+  );
 
   res.json({
     reply,
@@ -1683,6 +1692,7 @@ app.post("/api/chat", async (req, res) => {
     quickReplies: quickReplies || null,
     isComparison: Boolean(isComparison),
     isOrderSummary: Boolean(isOrderSummary),
+    isPairingSuggestion: Boolean(isPairingSuggestion),
     orderJustConfirmed: Boolean(orderJustConfirmed),
   });
 });
@@ -1779,6 +1789,7 @@ app.post("/api/order/items", (req, res) => {
     order,
     needsClarification: Boolean(result.needsClarification),
     quickReplies: result.quickReplies || null,
+    isPairingSuggestion: Boolean(result.isPairingSuggestion),
   });
 });
 
