@@ -861,6 +861,36 @@ function getRecommendations(order) {
   return ranked.slice(0, 5);
 }
 
+// Picks up to `limit` items to pair with a customer's very first add of the
+// session (e.g. a filter coffee alongside their first tiffin) — same
+// complementary-category preference as getRecommendations, but favors
+// bestseller/chef-recommended items first since this is a one-shot nudge,
+// not a browseable list.
+function getPairingSuggestions(order, limit = 2) {
+  const orderedItemIds = new Set(order.items.map((i) => i.itemId));
+  const orderedCategories = new Set(
+    order.items
+      .map((i) => MENU.items.find((m) => m.id === i.itemId))
+      .filter(Boolean)
+      .map((m) => m.category)
+  );
+
+  const available = MENU.items.filter((item) => item.available && !orderedItemIds.has(item.id));
+  const complementary = available.filter((item) => !orderedCategories.has(item.category));
+  const pool = complementary.length > 0 ? complementary : available;
+
+  // One suggestion per category (its best bestseller/chef-recommended item
+  // first) so a 2-item pairing spans two different kinds of dishes — e.g. a
+  // beverage plus a snack — instead of two near-identical items from the
+  // same category.
+  const rank = (item) => (item.bestseller || item.chefRecommended ? 0 : 1);
+  const byCategory = new Map();
+  for (const item of [...pool].sort((a, b) => rank(a) - rank(b))) {
+    if (!byCategory.has(item.category)) byCategory.set(item.category, item);
+  }
+  return [...byCategory.values()].slice(0, limit);
+}
+
 // Finds available menu items whose name matches a customer's (possibly
 // imprecise) wording. The AI must use this — and show the results as a
 // choice — instead of guessing an itemId when the wording doesn't exactly
@@ -1059,6 +1089,11 @@ function summarizeOrderReview(order) {
 // Adds one valid menu item to the order. Returns either an added item, a
 // clarifying question (missing/invalid size), or a hard validation error.
 function addItemToOrder(order, { itemId, size, quantity, options, addOns, notes }) {
+  // Captured before the push below — decides whether this add is the
+  // customer's very first item this session, which is when we nudge a
+  // pairing suggestion.
+  const wasEmpty = order.items.length === 0;
+
   if (typeof itemId !== "string" || itemId.trim().length === 0) {
     return { error: "itemId is required and must be a non-empty string." };
   }
@@ -1137,9 +1172,20 @@ function addItemToOrder(order, { itemId, size, quantity, options, addOns, notes 
   recalculateTotal(order);
 
   const addOnNote = addOnsResult.addOns.length > 0 ? ` with ${addOnsResult.addOns.map((a) => a.name).join(", ")}` : "";
-  return {
-    reply: `Added ${qty} x ${menuItem.name} (${chosenSize.name})${addOnNote} to your order.`,
-  };
+  let reply = `Added ${qty} x ${menuItem.name} (${chosenSize.name})${addOnNote} to your order.`;
+
+  // A one-time nudge on the customer's first item this session — never
+  // repeated on later adds, so it doesn't get naggy.
+  let quickReplies = null;
+  if (wasEmpty) {
+    const pairs = getPairingSuggestions(order, 2);
+    if (pairs.length > 0) {
+      quickReplies = buildItemQuickReplies(pairs, { recommended: true });
+      reply += ` You might also like: ${pairs.map((p) => p.name).join(" and ")}.`;
+    }
+  }
+
+  return { reply, quickReplies };
 }
 
 // Validates a requested list of add-on option names against a menu item's
