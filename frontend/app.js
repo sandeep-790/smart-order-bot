@@ -375,6 +375,13 @@ function appendReplyOptions(options, { skipIcon = false } = {}) {
       ? `<span>${value}</span>`
       : `<span class="chat-reply-option-icon">${getReplyOptionIcon(value)}</span><span>${value}</span>`;
     chip.addEventListener("click", () => {
+      // A tapped clarification (size, add-on, spice level, quantity, yes/no,
+      // etc.) is only ever valid for the turn it was offered on — once the
+      // customer acts on it (or moves on some other way), it's resolved or
+      // stale, so disable every such block still sitting in the scrollback,
+      // including this one. Welcome starters are exempt: they're general
+      // browsing shortcuts, not a pending decision, so they stay usable.
+      disableStaleReplyOptions();
       // "View Cart" shows the cart summary directly — it's not something
       // the AI needs to interpret, so skip the chat pipeline entirely.
       if (value === "View Cart") {
@@ -382,14 +389,10 @@ function appendReplyOptions(options, { skipIcon = false } = {}) {
         appendCartSummary();
         return;
       }
-      // Once checkout starts, View Cart no longer fits the flow — hide any
-      // chip(s) already sitting in the scrollback so they can't be tapped
-      // into after the fact.
+      // Once checkout starts, View Cart no longer fits the flow.
       if (value === "Proceed to checkout") {
         checkoutStarted = true;
-        chatArea.querySelectorAll(".chat-reply-option").forEach((c) => {
-          if (c.textContent.includes("View Cart")) c.closest(".chat-reply-options").hidden = true;
-        });
+        hideOldViewCartChips();
       }
       sendQuickReply(value);
     });
@@ -397,6 +400,27 @@ function appendReplyOptions(options, { skipIcon = false } = {}) {
   }
   chatArea.appendChild(wrap);
   chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+// Disables every non-welcome reply-option block still sitting in the
+// scrollback — called whenever the conversation moves forward (a chip is
+// tapped, text is typed, or an item is added directly) so a stale
+// size/add-on/quantity/etc. prompt from an earlier turn can't be tapped
+// into after the fact. Welcome starters are excluded on purpose — see
+// appendReplyOptions.
+function disableStaleReplyOptions() {
+  chatArea.querySelectorAll(".chat-reply-options:not(.chat-reply-options--welcome) .chat-reply-option").forEach((c) => {
+    c.disabled = true;
+  });
+}
+
+// Hides every View Cart chip currently sitting in the scrollback — called
+// right before a new one is offered (so only the latest turn's ever stays
+// tappable) and once checkout starts (so it can't be tapped into afterward).
+function hideOldViewCartChips() {
+  chatArea.querySelectorAll(".chat-reply-option").forEach((c) => {
+    if (c.textContent.includes("View Cart")) c.closest(".chat-reply-options").hidden = true;
+  });
 }
 
 // Offers a "View Cart" chip in-chat whenever a turn ends with nothing else
@@ -407,6 +431,9 @@ function maybeOfferViewCart() {
   const onChatTab = document.getElementById("tab-chat").classList.contains("active");
   const count = state.order ? state.order.items.reduce((sum, i) => sum + i.quantity, 0) : 0;
   if (onChatTab && count > 0) {
+    // Only the latest turn's View Cart chip should ever be tappable —
+    // retire any earlier one before offering this new one.
+    hideOldViewCartChips();
     appendReplyOptions(["View Cart"]);
   }
 }
@@ -597,6 +624,9 @@ function buildAddControl(item) {
 }
 
 async function confirmChatItemAdd(item, quantity, wrap, resetToIdle) {
+  // Adding an item directly means the conversation has moved forward past
+  // any earlier pending size/add-on/etc. prompt — those are now stale.
+  disableStaleReplyOptions();
   wrap.innerHTML = '<span class="chat-item-add-status">Adding…</span>';
   try {
     const data = await apiSend("POST", "/api/order/items", { itemId: item.itemId, quantity });
@@ -608,10 +638,24 @@ async function confirmChatItemAdd(item, quantity, wrap, resetToIdle) {
     }
     wrap.innerHTML = '<span class="chat-item-add-status chat-item-add-status--success">Added ✓</span>';
     updateCartCount();
-    const summary = `Added **${item.label}** to your cart. Would you like anything else, or are you ready to proceed with fulfillment?`;
+    // On the customer's first item this session, the backend attaches 1-2
+    // pairing suggestions as item cards — pitch them by name so the message
+    // reads like RoboCap actively suggesting a pair, not a generic
+    // "anything else?" follow-up.
+    const pairs = Array.isArray(data.quickReplies) ? data.quickReplies : [];
+    const summary =
+      pairs.length > 0
+        ? `Added **${item.label}** to your cart! It goes really well with ${pairs
+            .map((p) => `**${p.label}**`)
+            .join(" or ")} — want to add one?`
+        : `Added **${item.label}** to your cart. Would you like anything else, or are you ready to proceed with fulfillment?`;
     appendMessage("bot", summary);
     chatHistory.push({ role: "assistant", content: summary });
-    maybeOfferViewCart();
+    if (pairs.length > 0) {
+      appendItemList(pairs);
+    } else {
+      maybeOfferViewCart();
+    }
     setTimeout(resetToIdle, 1800);
   } catch (err) {
     wrap.innerHTML = `<span class="chat-item-add-status chat-item-add-status--error">${escapeHtml(err.message)}</span>`;
@@ -706,6 +750,9 @@ chatForm.addEventListener("submit", (event) => {
   const text = chatInput.value.trim();
   if (!text) return;
 
+  // Typing past a pending clarification chip (instead of tapping it) still
+  // moves the conversation forward — that chip is now stale either way.
+  disableStaleReplyOptions();
   appendMessage("user", text);
   chatInput.value = "";
   sendChatMessage(text);
