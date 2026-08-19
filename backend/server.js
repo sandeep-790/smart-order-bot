@@ -25,16 +25,18 @@ const ORDERS_PATH = path.join(__dirname, "..", "data", "orders.json");
 const TAX_RATE = 0.08; // 8% sales tax, applied to the discounted subtotal
 const DELIVERY_FEE = 40; // flat fee (INR), applied only to orderType "delivery"
 
-// AI provider — any OpenAI-compatible chat completions API (Gemini, Groq,
-// OpenRouter, etc. all work). Without AI_API_KEY set, /api/chat replies
-// with a clear "not configured" message instead of crashing.
-const AI_API_BASE_URL = (process.env.AI_API_BASE_URL || "").replace(/\/+$/, "");
-const AI_API_KEY = process.env.AI_API_KEY || "";
-const AI_MODEL = process.env.AI_MODEL || "";
-if (!AI_API_KEY) {
+// AI provider — Google's native Gemini API (generateContent), used directly
+// rather than through an OpenAI-compatible shim, for the chat tab's
+// "thinking" (POST /api/chat) — LIVE_MODEL names the text model. Without
+// GOOGLE_API_KEY set, /api/chat replies with a clear "not configured"
+// message instead of crashing.
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || "";
+const LIVE_MODEL = process.env.LIVE_MODEL || "";
+const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
+if (!GOOGLE_API_KEY) {
   console.warn(
-    "Warning: AI_API_KEY is not set in .env — /api/chat will reply with a " +
-    "placeholder message instead of calling a real AI provider."
+    "Warning: GOOGLE_API_KEY is not set in .env — /api/chat will reply with a " +
+    "placeholder message instead of calling Gemini."
   );
 }
 
@@ -114,10 +116,13 @@ app.use((err, req, res, next) => {
 const FRONTEND_PATH = path.join(__dirname, "..", "frontend");
 app.use(express.static(FRONTEND_PATH));
 
-function buildMessages(history, message) {
+// The static (order-independent) half of the system instruction — menu
+// data + active promotions. runAiTurn appends the live order state on top
+// of this each turn, since that changes turn to turn and this doesn't.
+function buildSystemContent() {
   const activePromotions = PROMOTIONS.promotions.filter((p) => p.active);
 
-  const systemContent =
+  return (
     `${SYSTEM_PROMPT}\n\n` +
     "## Menu Data\n" +
     "This is the only source of truth for menu items, prices, and availability — " +
@@ -135,20 +140,27 @@ function buildMessages(history, message) {
     "\n\n## Order Totals\n" +
     "Subtotal, discount, tax, delivery fee, and total are always calculated by " +
     "the system, never by you. Always state these numbers exactly as given in " +
-    "the order data — never calculate, estimate, or adjust them yourself.";
+    "the order data — never calculate, estimate, or adjust them yourself."
+  );
+}
 
-  return [
-    { role: "system", content: systemContent },
-    ...history,
-    { role: "user", content: message },
-  ];
+// Converts the frontend's flat {role: "user"|"assistant", content} history
+// into Gemini's Content[] shape ({role: "user"|"model", parts:[{text}]}),
+// then appends the new user message on top.
+function buildContents(history, message) {
+  const contents = history.map((entry) => ({
+    role: entry.role === "assistant" ? "model" : "user",
+    parts: [{ text: entry.content }],
+  }));
+  contents.push({ role: "user", parts: [{ text: message }] });
+  return contents;
 }
 
 // Tool definitions for AI function-calling — one per order-modifying or
 // order-reading backend action. Each maps directly onto an existing,
 // already-validated function; the tools add no new business logic of
 // their own, just a dispatch layer.
-const TOOLS = [
+const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
@@ -464,6 +476,12 @@ const TOOLS = [
   },
 ];
 
+// Gemini's function-calling schema is TOOL_DEFINITIONS' own {function:
+// {name, description, parameters}} shape without the OpenAI-style {type,
+// function} wrapper — derive it once here rather than maintaining two
+// parallel copies of every tool.
+const GEMINI_FUNCTION_DECLARATIONS = TOOL_DEFINITIONS.map((t) => t.function);
+
 // Dispatches one AI tool call onto the matching, already-validated backend
 // function. Returns a plain object (JSON-serialized back to the model) —
 // never throws for a bad call, since the model needs to see errors to
@@ -571,14 +589,20 @@ function executeTool(name, args, order, activeSessionId) {
   }
 }
 
-async function callAiApi(messages) {
-  const res = await fetch(`${AI_API_BASE_URL}/chat/completions`, {
+// contents is Gemini's Content[] (see buildContents) — systemInstruction is
+// passed as its own top-level field, not folded into contents, since
+// that's how the native API expects it (no "silently drops extra system
+// messages" workaround needed here, unlike the old OpenAI-compat shim).
+async function callAiApi(contents, systemInstructionText) {
+  const url = `${GEMINI_API_BASE}/models/${LIVE_MODEL}:generateContent?key=${GOOGLE_API_KEY}`;
+  const res = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${AI_API_KEY}`,
-    },
-    body: JSON.stringify({ model: AI_MODEL, messages, tools: TOOLS, tool_choice: "auto" }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents,
+      systemInstruction: { parts: [{ text: systemInstructionText }] },
+      tools: [{ functionDeclarations: GEMINI_FUNCTION_DECLARATIONS }],
+    }),
   });
 
   if (!res.ok) {
@@ -595,11 +619,12 @@ const MAX_TOOL_CALL_STEPS = 6;
 // the AI, executes any tool calls it requests against the real order, and
 // repeats until it responds with plain text or a safety cap is hit.
 async function runAiTurn(history, message, order, activeSessionId) {
-  if (!AI_API_KEY) {
-    return { reply: "AI isn't configured yet on this server — set AI_API_KEY (and AI_API_BASE_URL/AI_MODEL) in .env." };
+  if (!GOOGLE_API_KEY) {
+    return { reply: "AI isn't configured yet on this server — set GOOGLE_API_KEY (and LIVE_MODEL) in .env." };
   }
 
-  const conversation = buildMessages(history, message);
+  const contents = buildContents(history, message);
+  const systemContent = buildSystemContent();
   let quickReplies = null;
   let isComparison = false;
   let comparisonHighlights = null;
@@ -617,34 +642,32 @@ async function runAiTurn(history, message, order, activeSessionId) {
         ? "The cart is currently EMPTY — 0 items."
         : order.items.map((i) => `${i.quantity} x ${i.name} (${i.size})`).join("; ");
 
-    // Merged into ONE system message, not two — some OpenAI-compatible
-    // providers (confirmed: Gemini) silently drop system content when more
-    // than one system-role message is present, instead of concatenating them.
-    const mergedSystem = {
-      role: "system",
-      content:
-        `${conversation[0].content}\n\n` +
-        `## Current Order State (live — reflects everything set so far)\n` +
-        `EXACT cart quantities right now — this is the only correct answer to "how many does the customer have", ` +
-        `it is NOT necessarily what you said a moment ago: ${cartQuantityLine}\n\n` +
-        JSON.stringify(order, null, 2),
-    };
+    const systemInstructionText =
+      `${systemContent}\n\n` +
+      `## Current Order State (live — reflects everything set so far)\n` +
+      `EXACT cart quantities right now — this is the only correct answer to "how many does the customer have", ` +
+      `it is NOT necessarily what you said a moment ago: ${cartQuantityLine}\n\n` +
+      JSON.stringify(order, null, 2);
 
     let data;
     try {
-      data = await callAiApi([mergedSystem, ...conversation.slice(1)]);
+      data = await callAiApi(contents, systemInstructionText);
     } catch (err) {
       return { reply: "Sorry, I couldn't reach the AI service just now. Please try again in a moment." };
     }
 
-    const assistantMessage = data.choices && data.choices[0] && data.choices[0].message;
-    if (!assistantMessage) {
+    const candidate = data.candidates && data.candidates[0];
+    const responseParts = candidate && candidate.content && candidate.content.parts;
+    if (!responseParts) {
       return { reply: "Sorry, I didn't get a usable response — please try again." };
     }
 
-    if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+    const functionCallParts = responseParts.filter((p) => p.functionCall);
+
+    if (functionCallParts.length === 0) {
+      const textReply = responseParts.map((p) => p.text || "").join("");
       return {
-        reply: assistantMessage.content || "",
+        reply: textReply,
         quickReplies,
         isComparison,
         comparisonHighlights,
@@ -654,17 +677,16 @@ async function runAiTurn(history, message, order, activeSessionId) {
       };
     }
 
-    conversation.push(assistantMessage);
+    // Echo the model's own turn (its functionCall parts) back into the
+    // conversation before adding the results — Gemini's multi-turn function
+    // calling needs that turn present so the follow-up functionResponse(s)
+    // have something to attach to.
+    contents.push({ role: "model", parts: responseParts });
 
-    for (const toolCall of assistantMessage.tool_calls) {
-      let args = {};
-      try {
-        args = JSON.parse(toolCall.function.arguments || "{}");
-      } catch (err) {
-        args = {};
-      }
-
-      const result = executeTool(toolCall.function.name, args, order, activeSessionId);
+    const functionResponseParts = [];
+    for (const part of functionCallParts) {
+      const { name, args = {} } = part.functionCall;
+      const result = executeTool(name, args, order, activeSessionId);
 
       // The most recent tool result carrying quickReplies wins — that's
       // the choice actually relevant to what the customer should do next.
@@ -680,12 +702,12 @@ async function runAiTurn(history, message, order, activeSessionId) {
       }
       if (result.orderConfirmed) orderJustConfirmed = true;
 
-      conversation.push({
-        role: "tool",
-        tool_call_id: toolCall.id,
-        content: JSON.stringify(result),
-      });
+      functionResponseParts.push({ functionResponse: { name, response: result } });
     }
+    // Gemini's generateContent API only accepts "user"/"model" as content
+    // roles — function results ride back in as a "user" turn carrying
+    // functionResponse parts, not a dedicated "function" role.
+    contents.push({ role: "user", parts: functionResponseParts });
   }
 
   return { reply: "Sorry, that's taking longer than expected — could you rephrase or try again?" };
@@ -1732,16 +1754,16 @@ app.post("/api/chat", async (req, res) => {
   });
 });
 
-// Speaks a chat reply via Sarvam AI's TTS API and streams the audio back.
-// Proxied server-side so the API key never reaches the browser. Never
-// throws for a missing key/upstream failure — the frontend just skips
-// playback silently, since voice is a nice-to-have on top of the chat.
-// GET (not POST) so the frontend can point an <audio> element's src
-// straight at this route — that's what lets the browser start playing
-// before the whole clip has arrived, instead of waiting to buffer a
-// complete blob. Uses Sarvam's streaming endpoint and pipes the response
-// through chunk by chunk as it arrives, rather than buffering it here
-// either, so no hop in the chain adds a "wait for the whole file" delay.
+// Speaks a chat reply via Sarvam AI. Proxied server-side so the API key
+// never reaches the browser. Never throws for a missing key/upstream
+// failure — the frontend just skips playback silently, since voice is a
+// nice-to-have on top of the chat. GET (not POST) so the frontend can point
+// an <audio> element's src straight at this route — that's what lets the
+// browser start playing before the whole clip has arrived, instead of
+// waiting to buffer a complete blob. Uses Sarvam's streaming endpoint and
+// pipes the response through chunk by chunk as it arrives, rather than
+// buffering it here either, so no hop in the chain adds a "wait for the
+// whole file" delay.
 app.get("/api/tts", async (req, res) => {
   const { text } = req.query;
 
