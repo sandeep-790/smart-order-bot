@@ -27,15 +27,18 @@ order, and check out; staff track incoming orders on a small dashboard.
   **Menu, Cart, and Checkout** call the order endpoints directly
   (add/modify/remove items, promotions, pickup/delivery with address
   confirmation, review, confirmation-gated checkout); the **Chat** tab
-  sends free text to `POST /api/chat`, which calls a real AI provider
-  (any OpenAI-compatible chat completions API — see `AI_API_BASE_URL` /
-  `AI_API_KEY` / `AI_MODEL` in `.env`) with tool-calling wired to those
-  same order actions, so a customer can do everything through
-  conversation instead of the buttons/forms if they prefer.
-- **Without `AI_API_KEY` set, the Chat tab replies with a clear
-  "AI isn't configured" message** instead of erroring — see "AI provider
-  setup" below to turn it on. Menu/Cart/Checkout work either way, since
-  they don't depend on the AI at all.
+  sends free text to `POST /api/chat`, which calls Google's native Gemini
+  API directly (see `GOOGLE_API_KEY` / `LIVE_MODEL` in `.env`) with
+  tool-calling wired to those same order actions, so a customer can do
+  everything through conversation instead of the buttons/forms if they
+  prefer. RoboCap's spoken replies (`POST /api/tts`) use Sarvam AI's
+  Bulbul text-to-speech (`SARVAM_API_KEY` / `SARVAM_TTS_SPEAKER` /
+  `SARVAM_TTS_MODEL` in `.env`).
+- **Without `GOOGLE_API_KEY` set, the Chat tab replies with a clear
+  "AI isn't configured" message**, and without `SARVAM_API_KEY` set voice
+  stays silent, instead of erroring — see "AI provider setup" below to turn
+  these on. Menu/Cart/Checkout work either way, since they don't depend on
+  the AI at all.
 - **The staff dashboard is protected by HTTP Basic Auth** (`STAFF_USERNAME`
   / `STAFF_PASSWORD` in `.env`). The backend fails closed — every
   `/api/staff/*` request is rejected until both are set. There's no user
@@ -67,31 +70,37 @@ order, and check out; staff track incoming orders on a small dashboard.
 
 ## AI provider setup
 
-The Chat tab needs three env vars in `.env` — `AI_API_BASE_URL`,
-`AI_API_KEY`, `AI_MODEL`. Any provider with an OpenAI-compatible chat
-completions endpoint works; `.env.example` is pre-filled for **Google
-Gemini's free tier** (no credit card required):
+The Chat tab runs on Google's native Gemini API directly (not an
+OpenAI-compatible shim) — `GOOGLE_API_KEY` and `LIVE_MODEL` in `.env`.
+`.env.example` is pre-filled for **Gemini's free tier** (no credit card
+required):
 
 1. Get a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
-2. Paste it into `AI_API_KEY` in your `.env`.
-3. `AI_MODEL` defaults to `gemini-flash-lite-latest` — a "-latest" alias,
-   which auto-points at whatever Google currently has live. Google
-   deprecates dated model names often (`gemini-2.0-flash` and even
+2. Paste it into `GOOGLE_API_KEY` in your `.env`.
+3. `LIVE_MODEL` (the text model used for chat replies and tool-calling)
+   defaults to `gemini-flash-lite-latest` — a "-latest" alias, which
+   auto-points at whatever Google currently has live. Google deprecates
+   dated model names often (`gemini-2.0-flash` and even
    `gemini-2.5-flash`/`-lite` were already gone as of 2026-08), so prefer
    `-latest` aliases over a specific dated one. If you ever get a `404`
    with "no longer available", list what your key can actually use:
    ```bash
-   curl -s https://generativelanguage.googleapis.com/v1beta/openai/models \
-     -H "Authorization: Bearer $AI_API_KEY"
+   curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=$GOOGLE_API_KEY"
    ```
+   Note: names containing `-live-` (e.g. `gemini-3.1-flash-live-preview`)
+   are Gemini's real-time WebSocket Live API and are **not** compatible
+   with the standard `generateContent` endpoint this app uses — don't set
+   `LIVE_MODEL` to one of those.
 4. Restart the backend (`npm start`).
 
-To switch providers later, change all three values — no code changes
-needed. A couple of other options with free tiers: Groq
-([console.groq.com/keys](https://console.groq.com/keys), fast
-open-source models — not the same product as xAI's "Grok") or
-OpenRouter ([openrouter.ai/keys](https://openrouter.ai/keys), several
-models tagged free, tool-calling support varies by model).
+RoboCap's spoken replies run on Sarvam AI's Bulbul text-to-speech —
+`SARVAM_API_KEY`, `SARVAM_TTS_SPEAKER`, `SARVAM_TTS_MODEL` in `.env`:
+
+1. Get a key at [sarvam.ai](https://www.sarvam.ai).
+2. Paste it into `SARVAM_API_KEY` in your `.env`.
+3. `SARVAM_TTS_SPEAKER` (lowercase speaker name, e.g. `shubh`, `ritu`) and
+   `SARVAM_TTS_MODEL` (defaults to `bulbul:v3`) pick the voice.
+4. Restart the backend (`npm start`).
 
 ## Deployment notes
 
@@ -99,8 +108,9 @@ models tagged free, tool-calling support varies by model).
   deploying `backend/` (e.g. to Render, Railway, Fly.io) is all you need —
   there's no separate static site to host. Requires Node 18+. Set `PORT`
   via your host's environment variables (most platforms do this
-  automatically); set `STAFF_USERNAME`/`STAFF_PASSWORD` and
-  `AI_API_BASE_URL`/`AI_API_KEY`/`AI_MODEL` there too, since there's no
+  automatically); set `STAFF_USERNAME`/`STAFF_PASSWORD`,
+  `GOOGLE_API_KEY`/`LIVE_MODEL`, and
+  `SARVAM_API_KEY`/`SARVAM_TTS_SPEAKER`/`SARVAM_TTS_MODEL` there too, since there's no
   `.env` file on the server (see the platform's own dashboard for adding
   environment variables).
 - **CORS**: the backend currently allows requests from any origin
