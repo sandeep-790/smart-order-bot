@@ -142,19 +142,20 @@ body {
    header can stay focused on RoboCap's own identity. */
 .chat-ai-disclaimer {
   margin: 0;
-  padding: 6px 16px 10px;
+  padding: 3px 16px 5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  font-size: 10px;
+  gap: 4px;
+  font-size: 9px;
+  line-height: 1.2;
   color: var(--text-muted);
   background: var(--surface);
   flex-shrink: 0;
 }
 
 .chat-ai-disclaimer-logo {
-  height: 11px;
+  height: 9px;
   width: auto;
   display: block;
 }
@@ -504,23 +505,44 @@ body {
   background: var(--chat-bg);
 }
 
-/* Opening the chat overlay eases in rather than snapping straight to
-   fully visible — pairs with the typing-loader delay before the welcome
-   message (see showChatWelcome in app.js) so landing on the window feels
-   like RoboCap is coming online, not a static screen swap. */
+/* Opening the chat overlay grows out of the RoboCap floater's own position
+   (see openChatFromFloater in app.js, which sets --chat-origin-x/y before
+   adding .active) rather than just fading in centered — and closing (see
+   closeChatWindow) plays the same motion in reverse, shrinking back down
+   into wherever the floater is sitting, so the window reads as coming from
+   and returning to that bubble instead of a static screen swap. */
+#view-chat {
+  transform-origin: var(--chat-origin-x, 100%) var(--chat-origin-y, 0%);
+}
+
 @keyframes chat-window-in {
   from {
     opacity: 0;
-    transform: translateY(18px) scale(0.98);
+    transform: scale(0.15);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale(1);
+  }
+}
+
+@keyframes chat-window-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.15);
   }
 }
 
 #view-chat.active {
-  animation: chat-window-in 0.32s ease;
+  animation: chat-window-in 0.3s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+#view-chat.closing {
+  animation: chat-window-out 0.24s ease-in;
 }
 
 /* Chat area */
