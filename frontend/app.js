@@ -179,16 +179,32 @@ function buildMessageTtsToggle() {
   return button;
 }
 
-async function speak(text) {
+// Split from speak() so the TTS request can be kicked off (loadSpeech)
+// while a reply is still pacing on the typing-indicator delay, and only
+// started playing (playLoadedSpeech) once the text actually appears —
+// by then the browser's already been buffering audio for however long
+// that pause lasted, so playback starts right on the message instead of
+// a beat after it, without changing when anything is actually spoken.
+function loadSpeech(text) {
   if (ttsMuted || !text) return;
   stopSpeaking(); // a fast-arriving reply should never talk over the previous one
   ttsAudio.src = `${API_BASE}/api/tts?text=${encodeURIComponent(text)}`;
+}
+
+async function playLoadedSpeech() {
+  if (ttsMuted) return;
   try {
     await ttsAudio.play();
   } catch (err) {
     // Autoplay can be blocked before any user gesture, and the request can
     // fail (not configured, rate-limited) — voice is optional, fail silent.
   }
+}
+
+async function speak(text) {
+  if (ttsMuted || !text) return;
+  loadSpeech(text);
+  await playLoadedSpeech();
 }
 
 function formatTime(date) {
@@ -244,7 +260,14 @@ function appendMessage(sender, text, options = {}) {
     // text in the bubble, but speaking all of that is slow and redundant —
     // options.speakText lets a caller substitute a short spoken line while
     // the bubble still shows the complete text.
-    speak(options.speakText || text);
+    // options.speechPreloaded lets a caller that already called loadSpeech()
+    // (to start the TTS fetch early, e.g. during the typing-indicator pause)
+    // just resume/play here instead of starting a fresh, later request.
+    if (options.speechPreloaded) {
+      playLoadedSpeech();
+    } else {
+      speak(options.speakText || text);
+    }
   } else {
     bubble.textContent = text;
   }
@@ -1009,19 +1032,24 @@ async function sendChatMessage(text) {
     const data = await apiSend("POST", "/api/chat", { message: text, history: chatHistory });
     chatHistory.push({ role: "user", content: text });
     chatHistory.push({ role: "assistant", content: data.reply });
+    const speakText = data.orderJustConfirmed
+      ? "Your order is confirmed. It will be ready shortly."
+      : data.isOrderSummary
+      ? "Here is your final order summary. Shall I place the order?"
+      : data.reply;
+    // Start the TTS request now, during the (purely cosmetic) typing-loader
+    // pause below, instead of after the message appears — by the time the
+    // bubble renders, the audio's already been buffering for that pause's
+    // duration, so playback starts right on the message instead of a beat
+    // after it.
+    loadSpeech(speakText);
     // Every reply pauses on the typing loader for at least MIN_TYPING_MS —
     // a fast response would otherwise flash the indicator for a few ms,
     // which reads as broken rather than "RoboCap thought about it".
     const typingElapsed = Date.now() - typingStartedAt;
     if (typingElapsed < MIN_TYPING_MS) await sleep(MIN_TYPING_MS - typingElapsed);
     removeTypingIndicator();
-    appendMessage("bot", data.reply, {
-      speakText: data.orderJustConfirmed
-        ? "Your order is confirmed. It will be ready shortly."
-        : data.isOrderSummary
-        ? "Here is your final order summary. Shall I place the order?"
-        : undefined,
-    });
+    appendMessage("bot", data.reply, { speakText, speechPreloaded: true });
 
     const isItemList = Array.isArray(data.quickReplies) && data.quickReplies.length > 0 && typeof data.quickReplies[0] === "object";
     if (isItemList) {
