@@ -337,7 +337,7 @@ function appendChatError(retryText) {
   menuButton.addEventListener("click", () => {
     retryButton.disabled = true;
     menuButton.disabled = true;
-    showTab("menu");
+    closeChatWindow();
   });
 
   wrap.append(retryButton, menuButton);
@@ -1352,6 +1352,39 @@ floatingCartButton.addEventListener("click", () => {
 });
 
 const robocapFloater = document.getElementById("robocapFloater");
+const viewChatEl = document.getElementById("view-chat");
+
+// Anchors the chat window's grow-in animation (see #view-chat.active in
+// style.css) to wherever the floater actually is right now, so the window
+// visibly opens out of the bubble instead of just fading in centered.
+function setChatOriginFromFloater() {
+  const appEl = document.querySelector(".chat-app");
+  const appRect = appEl.getBoundingClientRect();
+  const floaterRect = robocapFloater.getBoundingClientRect();
+  const originX = ((floaterRect.left + floaterRect.width / 2 - appRect.left) / appRect.width) * 100;
+  const originY = ((floaterRect.top + floaterRect.height / 2 - appRect.top) / appRect.height) * 100;
+  viewChatEl.style.setProperty("--chat-origin-x", `${originX}%`);
+  viewChatEl.style.setProperty("--chat-origin-y", `${originY}%`);
+}
+
+function openChatFromFloater() {
+  setChatOriginFromFloater();
+  showView("chat");
+}
+
+// Plays the shrink-back-into-the-floater animation (the reverse of
+// #view-chat.active's grow-in) before actually switching away from the
+// chat view — without this, closing would just snap instantly instead of
+// visibly returning to the bubble.
+function closeChatWindow() {
+  viewChatEl.classList.add("closing");
+  const onAnimationEnd = () => {
+    viewChatEl.classList.remove("closing");
+    viewChatEl.removeEventListener("animationend", onAnimationEnd);
+    showTab("menu");
+  };
+  viewChatEl.addEventListener("animationend", onAnimationEnd);
+}
 
 // Draggable RoboCap bubble — Pointer Events cover mouse/touch/pen through
 // one code path. Repositions via left/top (switching off the CSS default
@@ -1424,7 +1457,7 @@ function initRobocapFloater() {
       // ignore
     }
     if (moved < DRAG_THRESHOLD) {
-      showView("chat");
+      openChatFromFloater();
       return;
     }
     // A real drag never leaves the bubble floating mid-screen — it sticks
@@ -2174,7 +2207,7 @@ if (state.sessionId) {
 // Closing RoboCap always lands on Menu specifically (not "whichever tab
 // was active before" — that's Cart/Checkout's back-button convention, and
 // opening the floater doesn't touch state.previousMainTab at all).
-document.getElementById("chatCloseButton").addEventListener("click", () => showTab("menu"));
+document.getElementById("chatCloseButton").addEventListener("click", closeChatWindow);
 
 // Menu is the landing page — showTab's own lazy-load only fires when it's
 // the *target* of a tab switch, so it never ran on load when Menu just
