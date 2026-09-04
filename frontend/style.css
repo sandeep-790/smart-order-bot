@@ -740,9 +740,11 @@ body {
 
 .item-sheet-close {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: 12px;
+  right: 12px;
   z-index: 1;
+  width: 28px;
+  height: 28px;
   background: rgba(0, 0, 0, 0.4);
   border-color: rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(6px);
@@ -757,7 +759,9 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding-bottom: 16px;
+  /* Right padding reserves the close button's own column (see
+     .item-sheet-close) so it never sits over the price. */
+  padding: 0 40px 16px 0;
   margin-bottom: 12px;
   border-bottom: 1px solid var(--border);
 }
@@ -784,6 +788,9 @@ body {
 }
 
 .item-sheet-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 16px;
   font-weight: 700;
   color: var(--text);
@@ -801,7 +808,6 @@ body {
   font-size: 16px;
   font-weight: 700;
   color: var(--text);
-  padding-right: 28px;
 }
 
 .item-sheet-body {
@@ -862,14 +868,12 @@ body {
   cursor: pointer;
 }
 
-.item-sheet-radio-list,
 .item-sheet-checkbox-list {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.item-sheet-radio-row,
 .item-sheet-checkbox-row {
   display: flex;
   align-items: center;
@@ -882,11 +886,6 @@ body {
   cursor: pointer;
 }
 
-.item-sheet-radio-row--selected {
-  background: #f36a2014;
-}
-
-.item-sheet-radio-row-right,
 .item-sheet-checkbox-row-right {
   flex-shrink: 0;
   display: flex;
@@ -894,18 +893,43 @@ body {
   gap: 10px;
 }
 
-.item-sheet-row-price,
 .item-sheet-addon-price {
   font-size: 13px;
   color: var(--text-muted);
 }
 
-.item-sheet-radio-row input[type="radio"],
 .item-sheet-checkbox-row input[type="checkbox"] {
   width: 18px;
   height: 18px;
   accent-color: var(--accent);
   cursor: pointer;
+}
+
+/* Size/type pills — same solid-vs-outlined pill language as the chat's
+   own reply-option chips (see .chat-reply-option--primary), instead of a
+   list of rows with a native radio button. */
+.item-sheet-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.item-sheet-pill {
+  padding: 10px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: var(--chat-bg);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.item-sheet-pill--selected {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(243, 106, 32, 0.35);
 }
 
 .item-sheet-validation-error {
@@ -1878,11 +1902,6 @@ body {
   color: var(--text-muted);
 }
 
-.chat-cart-summary .review-item-detail b {
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
 .review-item-change {
   margin-top: 2px;
   padding: 0;
@@ -2111,13 +2130,19 @@ body {
 }
 
 .chat-compare-card-details {
+  /* Fills the rest of the card's height (cards in a row stretch to match
+     the tallest one — see .chat-item-list's default align-items:stretch),
+     so the price/Add row below can be pinned to the bottom regardless of
+     how long this particular item's description is. */
+  flex: 1;
   padding: 10px;
   display: flex;
   flex-direction: column;
 }
 
 .chat-compare-card-details .chat-item-row-action {
-  margin-top: 8px;
+  margin-top: auto;
+  padding-top: 8px;
 }
 
 /* Sits within the photo itself, a little above its vertical middle (the

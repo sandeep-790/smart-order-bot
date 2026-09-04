@@ -724,8 +724,8 @@ async function renderCartSummaryBlock(block) {
             </div>
             <div class="review-item-detail-rows">
               <div class="review-item-detail-lines">
-                ${item.size ? `<span class="review-item-detail"><b>Type:</b> ${escapeHtml(item.size)}</span>` : ""}
-                <span class="review-item-detail"><b>Extras:</b> ${addOnNames ? escapeHtml(addOnNames) : "-"}</span>
+                ${item.size ? `<span class="review-item-detail">${escapeHtml(item.size)}</span>` : ""}
+                ${addOnNames ? `<span class="review-item-detail">${escapeHtml(addOnNames)}</span>` : ""}
                 <button type="button" class="review-item-change" data-action="change">Change</button>
               </div>
               <span class="review-item-price">${formatMoney(item.lineTotal)}</span>
@@ -767,21 +767,20 @@ async function renderCartSummaryBlock(block) {
         .querySelector('[data-action="decrease"]')
         .addEventListener("click", () => changeChatCartItemQuantity(lineId, item.quantity - 1, block));
       row.querySelector('[data-action="change"]').addEventListener("click", () => {
-        // Handed to the AI conversationally rather than reopening the add
-        // sheet — a cart line can carry state (notes, an already-confirmed
-        // size) the sheet doesn't round-trip, so asking what to change
-        // avoids silently discarding any of that.
-        const text = `I'd like to change my ${item.name}`;
-        appendMessage("user", text);
-        sendChatMessage(text);
+        openItemCustomizeSheetForEdit(item, block);
       });
     });
 
-    // "Add more" just gets out of the way — the cart summary itself isn't
-    // a dead end, so there's nothing to navigate to, only focus to return
-    // to the composer.
+    // "Add more" hands off to the AI's own get_recommendations tool, which
+    // already excludes whatever's in the cart (see getRecommendations in
+    // server.js) — capped to 2 cards client-side (limitNextItemListTo)
+    // since the tool itself returns up to 5 and there's no per-call way to
+    // ask it for fewer.
     block.querySelector(".chat-cart-summary-more-btn")?.addEventListener("click", () => {
-      chatInput.focus();
+      const text = "Recommend something else I could add to my order.";
+      limitNextItemListTo = 2;
+      appendMessage("user", text);
+      sendChatMessage(text);
     });
 
     const placeButton = block.querySelector(".chat-cart-summary-place-btn");
@@ -1114,18 +1113,22 @@ itemSheetBackdrop.addEventListener("click", (event) => {
   if (event.target === itemSheetBackdrop) closeItemSheet();
 });
 
-async function openItemCustomizeSheet(chatItem, cardWrap, resetCardToIdle) {
+async function openItemCustomizeSheet(chatItem, cardWrap, resetCardToIdle, editContext) {
   if (state.menu.length === 0) await loadMenu();
   const menuItem = state.menu.find((m) => m.id === chatItem.itemId);
 
   const sizes = menuItem && menuItem.sizes && menuItem.sizes.length > 0 ? menuItem.sizes : [{ name: null, price: chatItem.price }];
   const options = menuItem ? menuItem.options || [] : [];
   const addOnGroups = menuItem ? menuItem.addOnGroups || [] : [];
+  // Every menu item is either non-veg or veg — see buildChatItemCard for
+  // why "not tagged non-vegetarian" (rather than requiring the literal
+  // "vegetarian" tag) is the veg signal.
+  const isVeg = !(chatItem.dietary && chatItem.dietary.includes("non-vegetarian"));
 
-  let selectedSize = sizes[0].name;
-  const selectedOptions = new Set();
-  const selectedAddOns = new Set();
-  let quantity = 1;
+  let selectedSize = (editContext && editContext.initialSize) || sizes[0].name;
+  const selectedOptions = new Set(editContext ? editContext.initialOptions : []);
+  const selectedAddOns = new Set(editContext ? editContext.initialAddOns : []);
+  let quantity = (editContext && editContext.initialQuantity) || 1;
 
   function unitPrice() {
     const sizePrice = (sizes.find((s) => s.name === selectedSize) || sizes[0]).price;
@@ -1142,7 +1145,7 @@ async function openItemCustomizeSheet(chatItem, cardWrap, resetCardToIdle) {
     itemSheetHeader.innerHTML = `
       <span class="item-sheet-photo">${iconSvg(chatItem.image)}</span>
       <div class="item-sheet-header-text">
-        <div class="item-sheet-name">${escapeHtml(chatItem.label)}</div>
+        <div class="item-sheet-name">${dietaryIcon(isVeg)}${escapeHtml(chatItem.label)}</div>
         ${chatItem.description ? `<p class="item-sheet-desc">${escapeHtml(chatItem.description)}</p>` : ""}
       </div>
       <div class="item-sheet-price">₹${unitPrice().toFixed(0)}</div>
@@ -1165,17 +1168,13 @@ async function openItemCustomizeSheet(chatItem, cardWrap, resetCardToIdle) {
             <span>Select Type</span>
             <span class="item-sheet-badge item-sheet-badge--required">Choose any 1</span>
           </div>
-          <div class="item-sheet-radio-list">
+          <div class="item-sheet-pill-list">
             ${sizes
               .map(
                 (s) => `
-              <label class="item-sheet-radio-row${s.name === selectedSize ? " item-sheet-radio-row--selected" : ""}">
-                <span>${escapeHtml(s.name)}</span>
-                <span class="item-sheet-radio-row-right">
-                  <span class="item-sheet-row-price">₹${Number(s.price).toFixed(0)}</span>
-                  <input type="radio" name="itemSheetSize" value="${escapeHtml(s.name)}" ${s.name === selectedSize ? "checked" : ""} />
-                </span>
-              </label>`
+              <button type="button" class="item-sheet-pill${s.name === selectedSize ? " item-sheet-pill--selected" : ""}" data-size="${escapeHtml(
+                  s.name
+                )}">${escapeHtml(s.name)} · ₹${Number(s.price).toFixed(0)}</button>`
               )
               .join("")}
           </div>
@@ -1244,9 +1243,9 @@ async function openItemCustomizeSheet(chatItem, cardWrap, resetCardToIdle) {
   }
 
   function wireBodyEvents() {
-    itemSheetBody.querySelectorAll('input[name="itemSheetSize"]').forEach((input) => {
-      input.addEventListener("change", () => {
-        selectedSize = input.value;
+    itemSheetBody.querySelectorAll("[data-size]").forEach((button) => {
+      button.addEventListener("click", () => {
+        selectedSize = button.dataset.size;
         renderHeader();
         renderBody();
         renderFooter();
@@ -1300,13 +1299,15 @@ async function openItemCustomizeSheet(chatItem, cardWrap, resetCardToIdle) {
   }
 
   function renderFooter() {
+    const totalPrice = unitPrice() * quantity;
+    const buttonLabel = editContext ? "Save changes" : "Add";
     itemSheetFooter.innerHTML = `
       <div class="item-sheet-qty">
         <button type="button" class="item-sheet-qty-btn" data-action="minus" aria-label="Decrease quantity">−</button>
         <span class="item-sheet-qty-value">${quantity}</span>
         <button type="button" class="item-sheet-qty-btn" data-action="plus" aria-label="Increase quantity">+</button>
       </div>
-      <button type="button" class="item-sheet-add-btn" id="itemSheetAddBtn">Add · ₹${unitPrice().toFixed(0)}</button>
+      <button type="button" class="item-sheet-add-btn" id="itemSheetAddBtn">${buttonLabel} · ₹${totalPrice.toFixed(0)}</button>
     `;
     itemSheetFooter.querySelector('[data-action="minus"]').addEventListener("click", () => {
       if (quantity > 1) {
@@ -1331,18 +1332,19 @@ async function openItemCustomizeSheet(chatItem, cardWrap, resetCardToIdle) {
         itemSheetBody.scrollTop = itemSheetBody.scrollHeight;
         return;
       }
+      const payload = {
+        size: sizes[0].name ? selectedSize : undefined,
+        quantity,
+        options: [...selectedOptions],
+        addOns: [...selectedAddOns],
+      };
       closeItemSheet();
-      await confirmChatItemAdd(
-        chatItem,
-        {
-          size: sizes[0].name ? selectedSize : undefined,
-          quantity,
-          options: [...selectedOptions],
-          addOns: [...selectedAddOns],
-        },
-        cardWrap,
-        resetCardToIdle
-      );
+      if (editContext) {
+        await apiSend("PATCH", `/api/order/items/${editContext.lineId}`, payload);
+        await editContext.onSaved();
+      } else {
+        await confirmChatItemAdd(chatItem, payload, cardWrap, resetCardToIdle);
+      }
     });
   }
 
@@ -1355,9 +1357,44 @@ async function openItemCustomizeSheet(chatItem, cardWrap, resetCardToIdle) {
   itemSheetBackdrop.classList.add("active");
 }
 
+// "Change" on an order-summary line reopens the same customize sheet,
+// pre-filled with that line's current size/options/add-ons/quantity, and
+// saves via PATCH /api/order/items/:lineId instead of adding a new line.
+// The review row (from GET /api/order/review) doesn't carry itemId, so the
+// matching menu item — needed for the sheet's size/option/add-on choices —
+// is looked up by name instead (menu item names are unique).
+async function openItemCustomizeSheetForEdit(reviewItem, block) {
+  if (state.menu.length === 0) await loadMenu();
+  const menuItem = state.menu.find((m) => m.name === reviewItem.name);
+  const displayItem = {
+    itemId: menuItem ? menuItem.id : null,
+    label: reviewItem.name,
+    price: reviewItem.unitPrice,
+    image: menuItem ? menuItem.image : null,
+    description: menuItem ? menuItem.description : "",
+    dietary: menuItem ? menuItem.dietary : [],
+  };
+  await openItemCustomizeSheet(displayItem, null, null, {
+    lineId: reviewItem.lineId,
+    initialSize: reviewItem.size,
+    initialOptions: reviewItem.options || [],
+    initialAddOns: (reviewItem.addOns || []).map((a) => a.name),
+    initialQuantity: reviewItem.quantity,
+    onSaved: async () => {
+      updateCartCount();
+      await renderCartSummaryBlock(block);
+    },
+  });
+}
+
 // Conversation sent to the AI as context — {role: "user"|"assistant", content}.
 // Starts empty; the seed bubbles are decorative and not real history.
 const chatHistory = [];
+
+// Set right before a message that wants fewer cards than the tool behind
+// it actually returns (see the cart summary's "Add more" button) — read
+// and cleared by sendChatMessage's very next response only.
+let limitNextItemListTo = null;
 
 // Once the customer taps "Proceed to checkout", jumping back to View Cart
 // mid-fulfillment doesn't fit the flow — this suppresses the chip from here
@@ -1464,11 +1501,13 @@ async function sendChatMessage(text) {
       if (data.isComparison && data.quickReplies.length === 2) {
         appendComparisonCards(data.quickReplies, data.comparisonHighlights);
       } else {
-        appendItemList(data.quickReplies);
+        const items = limitNextItemListTo ? data.quickReplies.slice(0, limitNextItemListTo) : data.quickReplies;
+        appendItemList(items);
       }
     } else if (Array.isArray(data.quickReplies) && data.quickReplies.length > 0) {
       appendReplyOptions(data.quickReplies);
     }
+    limitNextItemListTo = null;
     // Tool calls this turn may have changed the order — reflect it everywhere.
     updateCartCount();
 
@@ -1481,6 +1520,7 @@ async function sendChatMessage(text) {
     // Never surface the raw error (network failure, AI service down, a
     // malformed response) — the customer doesn't need to know why, just
     // that something went wrong and how to move past it.
+    limitNextItemListTo = null;
     removeTypingIndicator();
     appendChatError(text);
   } finally {
