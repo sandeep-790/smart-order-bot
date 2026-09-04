@@ -119,10 +119,16 @@ app.use(express.static(FRONTEND_PATH));
 // The static (order-independent) half of the system instruction — menu
 // data + active promotions. runAiTurn appends the live order state on top
 // of this each turn, since that changes turn to turn and this doesn't.
+// MENU/PROMOTIONS are loaded once at startup and never change without a
+// restart, so this ~40KB string is built once and reused, rather than
+// re-serializing the whole menu on every single /api/chat call.
+let cachedSystemContent = null;
 function buildSystemContent() {
+  if (cachedSystemContent) return cachedSystemContent;
+
   const activePromotions = PROMOTIONS.promotions.filter((p) => p.active);
 
-  return (
+  cachedSystemContent =
     `${SYSTEM_PROMPT}\n\n` +
     "## Menu Data\n" +
     "This is the only source of truth for menu items, prices, and availability — " +
@@ -140,8 +146,9 @@ function buildSystemContent() {
     "\n\n## Order Totals\n" +
     "Subtotal, discount, tax, delivery fee, and total are always calculated by " +
     "the system, never by you. Always state these numbers exactly as given in " +
-    "the order data — never calculate, estimate, or adjust them yourself."
-  );
+    "the order data — never calculate, estimate, or adjust them yourself.";
+
+  return cachedSystemContent;
 }
 
 // Converts the frontend's flat {role: "user"|"assistant", content} history

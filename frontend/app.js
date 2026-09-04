@@ -228,8 +228,12 @@ const MIN_TYPING_MS = 900;
 // Item-card results (see appendItemList/appendComparisonCards) show a
 // shimmering skeleton in their place for at least this long before the
 // real cards swap in — same idea, applied to "fetching results" rather
-// than "thinking of a reply".
-const SKELETON_MIN_MS = 1500;
+// than "thinking of a reply". This runs AFTER the AI has already replied
+// (the data is sitting there ready), so it's pure added wait, not overlap
+// with real network time — kept short (just enough to avoid a jarring
+// pop-in), since the AI round-trip before this already takes a second or
+// more on its own.
+const SKELETON_MIN_MS = 300;
 
 // RoboCap's replies use markdown-style **bold** for item names and other
 // important terms — escape first (this is model-generated text going into
@@ -327,7 +331,7 @@ function removeTypingIndicator() {
 // checkout flow.
 function sendQuickReply(value, displayText) {
   appendMessage("user", displayText || value);
-  sendChatMessage(value);
+  return sendChatMessage(value);
 }
 
 // Shown whenever the AI turn fails for any reason (network down, AI
@@ -494,7 +498,7 @@ function appendReplyOptions(options, { skipIcon = false } = {}) {
       }
     }
 
-    chip.addEventListener("click", () => {
+    chip.addEventListener("click", async () => {
       // A tapped clarification (size, add-on, spice level, quantity, yes/no,
       // etc.) is only ever valid for the turn it was offered on — once the
       // customer acts on it (or moves on some other way), it's resolved or
@@ -523,6 +527,16 @@ function appendReplyOptions(options, { skipIcon = false } = {}) {
         checkoutStarted = false;
         updateCartCount();
       }
+      // Picking a fulfillment type is immediately followed by RoboCap asking
+      // for name/phone/etc. conversationally — offer the same details as a
+      // structured card too (Figma's "Your details" step), right after that
+      // reply lands, as a second way to answer besides typing.
+      const fulfillmentType = matchFulfillmentType(value);
+      if (fulfillmentType) {
+        await sendQuickReply(value);
+        appendDetailsForm(fulfillmentType);
+        return;
+      }
       sendQuickReply(value);
     });
     wrap.appendChild(chip);
@@ -548,6 +562,15 @@ function disableStaleReplyOptions() {
   chatArea.querySelectorAll(".chat-cart-summary-place-btn").forEach((btn) => {
     btn.disabled = true;
   });
+  // Same idea for the "Your details" card — if the customer moves on some
+  // other way (types their details manually, taps a later chip) instead of
+  // using it, an unanswered one left in the scrollback is stale.
+  chatArea.querySelectorAll(".chat-details-form:not(.chat-details-form--done)").forEach((form) => {
+    form.classList.add("chat-details-form--done");
+    form.querySelectorAll("button, input").forEach((el) => {
+      el.disabled = true;
+    });
+  });
 }
 
 // Hides every View Cart chip currently sitting in the scrollback — called
@@ -559,9 +582,110 @@ function hideOldViewCartChips() {
   });
 }
 
-const TRASH_ICON =
-  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-  '<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function matchFulfillmentType(value) {
+  if (/pickup/i.test(value)) return "pickup";
+  if (/delivery/i.test(value)) return "delivery";
+  if (/dine.?in/i.test(value)) return "dine_in";
+  return null;
+}
+
+// Field sets per fulfillment type — matches exactly what the backend's own
+// pickup/dine-in/delivery routes accept (see server.js), so the composed
+// message below never asks for something the AI can't actually use.
+const DETAILS_FORM_FIELDS = {
+  pickup: [
+    { key: "name", label: "Your name", type: "text", required: true },
+    { key: "pickupTime", label: "Pickup time (optional)", type: "text", required: false },
+  ],
+  dine_in: [
+    { key: "name", label: "Your name", type: "text", required: true },
+    { key: "phone", label: "Phone number", type: "tel", required: true },
+  ],
+  delivery: [
+    { key: "name", label: "Your name", type: "text", required: true },
+    { key: "phone", label: "Phone number", type: "tel", required: true },
+    { key: "address", label: "Delivery address", type: "text", required: true },
+    { key: "apartmentUnit", label: "Apartment / unit (optional)", type: "text", required: false },
+    { key: "instructions", label: "Delivery instructions (optional)", type: "text", required: false },
+  ],
+};
+
+// Turns the filled-in fields into the same kind of plain sentence a
+// customer would type themselves — this is what actually gets sent, through
+// the normal chat pipeline, so the AI parses it exactly like free text.
+function composeDetailsMessage(fulfillmentType, values) {
+  if (fulfillmentType === "pickup") {
+    let msg = `My name is ${values.name}`;
+    if (values.pickupTime) msg += `, pickup time ${values.pickupTime}`;
+    return msg;
+  }
+  if (fulfillmentType === "dine_in") {
+    return `My name is ${values.name}, phone ${values.phone}`;
+  }
+  let msg = `My name is ${values.name}, phone ${values.phone}, delivery address ${values.address}`;
+  if (values.apartmentUnit) msg += `, apartment/unit ${values.apartmentUnit}`;
+  if (values.instructions) msg += `. Delivery instructions: ${values.instructions}`;
+  return msg;
+}
+
+// Structured "Your details" card (Figma), offered right after a fulfillment
+// type is picked — a second way to give name/phone/address/etc. besides
+// typing them conversationally. Submitting composes a normal sentence from
+// the fields and sends it through sendQuickReply, same as any typed
+// message — no new API, no bypass of the AI's own confirmation/address
+// read-back rules downstream.
+function appendDetailsForm(fulfillmentType) {
+  const fields = DETAILS_FORM_FIELDS[fulfillmentType];
+  const wrap = document.createElement("div");
+  wrap.className = "chat-details-form";
+
+  wrap.innerHTML =
+    '<div class="chat-details-form-header">Your details</div>' +
+    fields
+      .map(
+        (f) =>
+          `<label class="chat-details-form-field"><span>${escapeHtml(f.label)}</span>` +
+          `<input type="${f.type}" data-field="${f.key}" ${f.required ? "required" : ""} /></label>`
+      )
+      .join("") +
+    '<p class="chat-details-form-lock">🔒 Only used for this order.</p>' +
+    '<div class="chat-details-form-actions">' +
+    '<button type="button" class="chat-details-form-save">Save and continue</button>' +
+    '<button type="button" class="chat-details-form-later">I\'ll type it instead</button>' +
+    "</div>";
+
+  const saveButton = wrap.querySelector(".chat-details-form-save");
+  const laterButton = wrap.querySelector(".chat-details-form-later");
+  const inputs = wrap.querySelectorAll("input");
+
+  function setBusy(busy) {
+    saveButton.disabled = busy;
+    laterButton.disabled = busy;
+    inputs.forEach((input) => (input.disabled = busy));
+  }
+
+  saveButton.addEventListener("click", () => {
+    const values = {};
+    for (const input of inputs) {
+      if (input.required && !input.value.trim()) {
+        input.reportValidity();
+        return;
+      }
+      values[input.dataset.field] = input.value.trim();
+    }
+    setBusy(true);
+    wrap.classList.add("chat-details-form--done");
+    sendQuickReply(composeDetailsMessage(fulfillmentType, values));
+  });
+
+  laterButton.addEventListener("click", () => {
+    setBusy(true);
+    wrap.classList.add("chat-details-form--done");
+  });
+
+  chatArea.appendChild(wrap);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
 
 // Renders the current cart as an in-chat summary block — appended once,
 // then re-rendered in place by changeChatCartItemQuantity whenever a line
@@ -575,32 +699,36 @@ async function appendCartSummary() {
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
+const FULFILLMENT_LABELS = { pickup: "Pickup", delivery: "Delivery", dine_in: "Dine-in" };
+
 async function renderCartSummaryBlock(block) {
   block.innerHTML = '<span class="chat-item-add-status">Loading cart…</span>';
   try {
     const data = await apiGet("/api/order/review");
     const review = data.review;
     const count = review.items.reduce((sum, i) => sum + i.quantity, 0);
+    const fulfillmentLabel = FULFILLMENT_LABELS[review.fulfillment && review.fulfillment.type] || null;
 
     const itemRows = review.items
       .map((item) => {
-        const addOnNames = (item.addOns || []).map((a) => a.name);
-        const details = [item.size, ...item.options, ...addOnNames].filter(Boolean).join(" · ");
+        const addOnNames = (item.addOns || []).map((a) => a.name).join(", ");
         return `
           <div class="review-item-row" data-line-id="${item.lineId}">
-            <div class="review-item-main">
-              <span class="review-item-name">${item.name}</span>
-              ${details ? `<span class="review-item-detail">${details}</span>` : ""}
-              ${item.notes ? `<span class="review-item-detail">Note: ${item.notes}</span>` : ""}
-            </div>
-            <div class="review-item-controls">
+            <div class="review-item-top">
+              <span class="review-item-name">${escapeHtml(item.name)}</span>
               <div class="chat-item-qty-stepper">
                 <button type="button" data-action="decrease" aria-label="Decrease quantity">−</button>
                 <span>${item.quantity}</span>
                 <button type="button" data-action="increase" aria-label="Increase quantity">+</button>
               </div>
+            </div>
+            <div class="review-item-detail-rows">
+              <div class="review-item-detail-lines">
+                ${item.size ? `<span class="review-item-detail"><b>Type:</b> ${escapeHtml(item.size)}</span>` : ""}
+                <span class="review-item-detail"><b>Extras:</b> ${addOnNames ? escapeHtml(addOnNames) : "-"}</span>
+                <button type="button" class="review-item-change" data-action="change">Change</button>
+              </div>
               <span class="review-item-price">${formatMoney(item.lineTotal)}</span>
-              <button type="button" class="review-item-remove" data-action="remove" aria-label="Remove ${escapeHtml(item.name)}">${TRASH_ICON}</button>
             </div>
           </div>
         `;
@@ -608,46 +736,25 @@ async function renderCartSummaryBlock(block) {
       .join("");
 
     block.innerHTML = `
+      <div class="chat-cart-summary-icon"><span>${REPLY_ICON_CART}</span></div>
       <div class="chat-cart-summary-header">
-        <span>Order Summary</span>
-        <span class="chat-cart-summary-count">${count} item${count === 1 ? "" : "s"}</span>
+        <span class="chat-cart-summary-label">Your order</span>
+        <span class="chat-cart-summary-count">${count} item${count === 1 ? "" : "s"}${fulfillmentLabel ? ` · ${fulfillmentLabel}` : ""}</span>
       </div>
       <div class="review-items">${itemRows || '<p class="empty-state">No items yet.</p>'}</div>
       ${
+        review.notes
+          ? `<div class="chat-cart-summary-note"><span class="chat-cart-summary-note-label">Note:</span> ${escapeHtml(review.notes)}</div>`
+          : ""
+      }
+      ${
         review.items.length > 0
-          ? `<div class="chat-cart-summary-price-rows">
-              <div class="chat-cart-summary-price-row">
-                <span>Subtotal</span>
-                <span>${formatMoney(review.pricing.subtotal)}</span>
-              </div>
-              ${
-                review.pricing.discount > 0
-                  ? `<div class="chat-cart-summary-price-row">
-                      <span>Discount</span>
-                      <span>−${formatMoney(review.pricing.discount)}</span>
-                    </div>`
-                  : ""
-              }
-              <div class="chat-cart-summary-price-row">
-                <span>Tax</span>
-                <span>${formatMoney(review.pricing.tax)}</span>
-              </div>
-              ${
-                review.pricing.deliveryFee > 0
-                  ? `<div class="chat-cart-summary-price-row">
-                      <span>Delivery fee</span>
-                      <span>${formatMoney(review.pricing.deliveryFee)}</span>
-                    </div>`
-                  : ""
-              }
+          ? `<div class="chat-cart-summary-actions">
+              <button type="button" class="chat-cart-summary-more-btn">Add more</button>
+              <button type="button" class="chat-cart-summary-place-btn">Place order</button>
             </div>`
           : ""
       }
-      <div class="chat-cart-summary-total-row">
-        <span>Total</span>
-        <span>${formatMoney(review.pricing.total)}</span>
-      </div>
-      ${review.items.length > 0 ? '<button type="button" class="chat-cart-summary-place-btn">Place order →</button>' : ""}
     `;
 
     block.querySelectorAll(".review-item-row").forEach((row) => {
@@ -659,9 +766,22 @@ async function renderCartSummaryBlock(block) {
       row
         .querySelector('[data-action="decrease"]')
         .addEventListener("click", () => changeChatCartItemQuantity(lineId, item.quantity - 1, block));
-      row
-        .querySelector('[data-action="remove"]')
-        .addEventListener("click", () => changeChatCartItemQuantity(lineId, 0, block));
+      row.querySelector('[data-action="change"]').addEventListener("click", () => {
+        // Handed to the AI conversationally rather than reopening the add
+        // sheet — a cart line can carry state (notes, an already-confirmed
+        // size) the sheet doesn't round-trip, so asking what to change
+        // avoids silently discarding any of that.
+        const text = `I'd like to change my ${item.name}`;
+        appendMessage("user", text);
+        sendChatMessage(text);
+      });
+    });
+
+    // "Add more" just gets out of the way — the cart summary itself isn't
+    // a dead end, so there's nothing to navigate to, only focus to return
+    // to the composer.
+    block.querySelector(".chat-cart-summary-more-btn")?.addEventListener("click", () => {
+      chatInput.focus();
     });
 
     const placeButton = block.querySelector(".chat-cart-summary-place-btn");
@@ -865,12 +985,13 @@ function buildChatItemCard(item, bestFor) {
   if (item.recommended) badges.push('<span class="badge badge-recommended">Recommended</span>');
 
   card.innerHTML = `
-    <div class="chat-compare-card-image">${iconSvg(item.image)}</div>
-    <div class="chat-compare-card-details">
+    <div class="chat-compare-card-image">
+      ${iconSvg(item.image)}
       ${badges.length > 0 ? `<div class="chat-item-row-badges">${badges.join("")}</div>` : ""}
+    </div>
+    <div class="chat-compare-card-details">
       <div class="chat-item-row-top">
         <span class="chat-item-row-name">${dietaryIcon(isVeg)}${item.label}</span>
-        ${item.price != null ? `<span class="chat-item-row-price">₹${Number(item.price).toFixed(0)}</span>` : ""}
       </div>
       ${item.description ? `<p class="chat-item-row-desc">${truncateWords(item.description, 10)}</p>` : ""}
       ${
@@ -878,7 +999,9 @@ function buildChatItemCard(item, bestFor) {
           ? `<p class="chat-item-row-best-for"><strong>Best for:</strong> ${escapeHtml(bestFor)}</p>`
           : ""
       }
-      <div class="chat-item-row-action"></div>
+      <div class="chat-item-row-action">
+        ${item.price != null ? `<span class="chat-item-row-price">₹${Number(item.price).toFixed(0)}</span>` : ""}
+      </div>
     </div>
   `;
 
@@ -886,11 +1009,10 @@ function buildChatItemCard(item, bestFor) {
   return card;
 }
 
-// A per-row Add control: tapping Add reveals a small quantity stepper
-// in place of the button — confirming it adds directly via REST with that
-// quantity (no AI round-trip for a simple, unambiguous item). An item that
-// needs a size/add-on choice falls back to the chat pipeline so the AI can
-// ask conversationally, same as a typed request.
+// A per-row Add control — tapping Add opens the full customization sheet
+// (see openItemCustomizeSheet) instead of an inline stepper, so size/
+// add-on choices are made up front rather than needing an AI round-trip
+// after the fact for anything but the simplest item.
 function buildAddControl(item) {
   const wrap = document.createElement("div");
   wrap.className = "chat-item-add";
@@ -900,60 +1022,30 @@ function buildAddControl(item) {
     const addButton = document.createElement("button");
     addButton.type = "button";
     addButton.className = "chat-item-add-button";
-    addButton.innerHTML = '<span aria-hidden="true">+</span> Add';
-    addButton.addEventListener("click", renderStepper);
+    addButton.textContent = "Add";
+    addButton.addEventListener("click", () => openItemCustomizeSheet(item, wrap, renderIdle));
     wrap.appendChild(addButton);
-  }
-
-  function renderStepper() {
-    let qty = 1;
-    wrap.innerHTML = "";
-    wrap.classList.add("chat-item-add--stepper");
-
-    const stepper = document.createElement("div");
-    stepper.className = "chat-item-qty-stepper";
-
-    const minus = document.createElement("button");
-    minus.type = "button";
-    minus.setAttribute("aria-label", "Decrease quantity");
-    minus.textContent = "−";
-    const qtyLabel = document.createElement("span");
-    qtyLabel.textContent = String(qty);
-    const plus = document.createElement("button");
-    plus.type = "button";
-    plus.setAttribute("aria-label", "Increase quantity");
-    plus.textContent = "+";
-
-    minus.addEventListener("click", () => {
-      if (qty > 1) qtyLabel.textContent = String((qty -= 1));
-    });
-    plus.addEventListener("click", () => {
-      if (qty < 10) qtyLabel.textContent = String((qty += 1));
-    });
-
-    stepper.append(minus, qtyLabel, plus);
-
-    const confirm = document.createElement("button");
-    confirm.type = "button";
-    confirm.className = "chat-item-qty-confirm";
-    confirm.innerHTML = "✓ Add";
-    confirm.addEventListener("click", () => confirmChatItemAdd(item, qty, wrap, renderIdle));
-
-    wrap.append(stepper, confirm);
   }
 
   renderIdle();
   return wrap;
 }
 
-async function confirmChatItemAdd(item, quantity, wrap, resetToIdle) {
+// Actually places the order line (used by the customize sheet's Add
+// button) — payload is whatever POST /api/order/items accepts beyond
+// itemId (size, quantity, options, addOns). Status renders into the
+// originating card's own .chat-item-add wrap, same as before the sheet
+// existed, so the transcript still reads as "this card's item got added".
+async function confirmChatItemAdd(item, payload, wrap, resetToIdle) {
   // Adding an item directly means the conversation has moved forward past
   // any earlier pending size/add-on/etc. prompt — those are now stale.
   disableStaleReplyOptions();
   wrap.innerHTML = '<span class="chat-item-add-status">Adding…</span>';
   try {
-    const data = await apiSend("POST", "/api/order/items", { itemId: item.itemId, quantity });
+    const data = await apiSend("POST", "/api/order/items", { itemId: item.itemId, ...payload });
     if (data.needsClarification) {
+      // The sheet already collects size/add-ons up front, so this should be
+      // rare — fall back to the AI conversationally rather than get stuck.
       resetToIdle();
       appendMessage("user", item.value);
       sendChatMessage(item.value);
@@ -988,6 +1080,281 @@ async function confirmChatItemAdd(item, quantity, wrap, resetToIdle) {
   }
 }
 
+// --- Item customization sheet -------------------------------------------
+// Opened by tapping "Add" on a chat item card. Chat item cards only carry a
+// slim shape (label/price/image — see buildItemQuickReplies in server.js),
+// not sizes/options/addOnGroups, so this looks the full item up from
+// state.menu (already loaded for the Menu tab, via the existing GET
+// /api/menu — no new backend surface) by itemId. Submitting calls the same
+// POST /api/order/items the Menu tab's own card and the old inline stepper
+// used, just with size/options/addOns collected up front.
+const itemSheetBackdrop = document.getElementById("itemSheetBackdrop");
+const itemSheetHeader = document.getElementById("itemSheetHeader");
+const itemSheetBody = document.getElementById("itemSheetBody");
+const itemSheetFooter = document.getElementById("itemSheetFooter");
+
+function closeItemSheet() {
+  if (itemSheetBackdrop.hidden) return;
+  itemSheetBackdrop.classList.remove("active");
+  itemSheetBackdrop.classList.add("closing");
+  const onEnd = (event) => {
+    if (event.target !== itemSheetBackdrop) return;
+    itemSheetBackdrop.removeEventListener("transitionend", onEnd);
+    itemSheetBackdrop.hidden = true;
+    itemSheetBackdrop.classList.remove("closing");
+  };
+  itemSheetBackdrop.addEventListener("transitionend", onEnd);
+}
+
+document.getElementById("itemSheetCloseButton").addEventListener("click", closeItemSheet);
+// Tapping the dimmed backdrop itself (not the sheet card) cancels, same as
+// the close button — only reachable when the click target is the backdrop
+// element exactly, not something inside the sheet bubbling up.
+itemSheetBackdrop.addEventListener("click", (event) => {
+  if (event.target === itemSheetBackdrop) closeItemSheet();
+});
+
+async function openItemCustomizeSheet(chatItem, cardWrap, resetCardToIdle) {
+  if (state.menu.length === 0) await loadMenu();
+  const menuItem = state.menu.find((m) => m.id === chatItem.itemId);
+
+  const sizes = menuItem && menuItem.sizes && menuItem.sizes.length > 0 ? menuItem.sizes : [{ name: null, price: chatItem.price }];
+  const options = menuItem ? menuItem.options || [] : [];
+  const addOnGroups = menuItem ? menuItem.addOnGroups || [] : [];
+
+  let selectedSize = sizes[0].name;
+  const selectedOptions = new Set();
+  const selectedAddOns = new Set();
+  let quantity = 1;
+
+  function unitPrice() {
+    const sizePrice = (sizes.find((s) => s.name === selectedSize) || sizes[0]).price;
+    let total = sizePrice;
+    for (const group of addOnGroups) {
+      for (const opt of group.options) {
+        if (selectedAddOns.has(opt.name)) total += opt.priceDelta || 0;
+      }
+    }
+    return total;
+  }
+
+  function renderHeader() {
+    itemSheetHeader.innerHTML = `
+      <span class="item-sheet-photo">${iconSvg(chatItem.image)}</span>
+      <div class="item-sheet-header-text">
+        <div class="item-sheet-name">${escapeHtml(chatItem.label)}</div>
+        ${chatItem.description ? `<p class="item-sheet-desc">${escapeHtml(chatItem.description)}</p>` : ""}
+      </div>
+      <div class="item-sheet-price">₹${unitPrice().toFixed(0)}</div>
+    `;
+  }
+
+  function addOnBadgeText(group) {
+    if (group.required) return `Required, choose ${group.min}${group.max > group.min ? `-${group.max}` : ""}`;
+    if (group.min > 0) return `Min ${group.min}, up to ${group.max}`;
+    return `Up to ${group.max}`;
+  }
+
+  function renderBody() {
+    let html = "";
+
+    if (sizes.length > 1 && sizes[0].name) {
+      html += `
+        <div class="item-sheet-section">
+          <div class="item-sheet-section-title">
+            <span>Select Type</span>
+            <span class="item-sheet-badge item-sheet-badge--required">Choose any 1</span>
+          </div>
+          <div class="item-sheet-radio-list">
+            ${sizes
+              .map(
+                (s) => `
+              <label class="item-sheet-radio-row${s.name === selectedSize ? " item-sheet-radio-row--selected" : ""}">
+                <span>${escapeHtml(s.name)}</span>
+                <span class="item-sheet-radio-row-right">
+                  <span class="item-sheet-row-price">₹${Number(s.price).toFixed(0)}</span>
+                  <input type="radio" name="itemSheetSize" value="${escapeHtml(s.name)}" ${s.name === selectedSize ? "checked" : ""} />
+                </span>
+              </label>`
+              )
+              .join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    if (options.length > 0) {
+      html += `
+        <div class="item-sheet-section">
+          <div class="item-sheet-section-title">
+            <span>Customizations</span>
+            <span class="item-sheet-badge">Optional</span>
+          </div>
+          <div class="item-sheet-checkbox-list">
+            ${options
+              .map(
+                (name) => `
+              <label class="item-sheet-checkbox-row">
+                <span>${escapeHtml(name)}</span>
+                <input type="checkbox" data-option="${escapeHtml(name)}" ${selectedOptions.has(name) ? "checked" : ""} />
+              </label>`
+              )
+              .join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    for (const group of addOnGroups) {
+      const chosenCount = group.options.filter((o) => selectedAddOns.has(o.name)).length;
+      html += `
+        <div class="item-sheet-section">
+          <div class="item-sheet-section-title">
+            <span>${escapeHtml(group.name)}</span>
+            <span class="item-sheet-badge${group.required ? " item-sheet-badge--required" : ""}">${addOnBadgeText(group)}</span>
+          </div>
+          <div class="item-sheet-section-sub">
+            <span>${chosenCount} of ${group.max} chosen</span>
+            ${chosenCount > 0 ? `<button type="button" class="item-sheet-clear-btn" data-clear-group="${escapeHtml(group.name)}">Clear</button>` : ""}
+          </div>
+          <div class="item-sheet-checkbox-list">
+            ${group.options
+              .map(
+                (opt) => `
+              <label class="item-sheet-checkbox-row">
+                <span>${escapeHtml(opt.name)}</span>
+                <span class="item-sheet-checkbox-row-right">
+                  ${opt.priceDelta > 0 ? `<span class="item-sheet-addon-price">+ ₹${Number(opt.priceDelta).toFixed(0)}</span>` : ""}
+                  <input type="checkbox" data-addon="${escapeHtml(opt.name)}" data-group="${escapeHtml(group.name)}" ${
+                  selectedAddOns.has(opt.name) ? "checked" : ""
+                } />
+                </span>
+              </label>`
+              )
+              .join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    itemSheetBody.innerHTML =
+      html || '<p class="item-sheet-empty">No customizations for this item — just pick a quantity.</p>';
+    itemSheetBody.querySelector(".item-sheet-validation-error")?.remove();
+    wireBodyEvents();
+  }
+
+  function wireBodyEvents() {
+    itemSheetBody.querySelectorAll('input[name="itemSheetSize"]').forEach((input) => {
+      input.addEventListener("change", () => {
+        selectedSize = input.value;
+        renderHeader();
+        renderBody();
+        renderFooter();
+      });
+    });
+    itemSheetBody.querySelectorAll("input[data-option]").forEach((input) => {
+      input.addEventListener("change", () => {
+        if (input.checked) selectedOptions.add(input.dataset.option);
+        else selectedOptions.delete(input.dataset.option);
+      });
+    });
+    itemSheetBody.querySelectorAll("input[data-addon]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const group = addOnGroups.find((g) => g.name === input.dataset.group);
+        const chosenCount = group.options.filter((o) => selectedAddOns.has(o.name)).length;
+        if (input.checked && chosenCount >= group.max) {
+          // Already at the group's cap — reject this one instead of
+          // silently bumping an earlier choice out.
+          input.checked = false;
+          return;
+        }
+        if (input.checked) selectedAddOns.add(input.dataset.addon);
+        else selectedAddOns.delete(input.dataset.addon);
+        renderHeader();
+        renderBody();
+        renderFooter();
+      });
+    });
+    itemSheetBody.querySelectorAll("[data-clear-group]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const group = addOnGroups.find((g) => g.name === button.dataset.clearGroup);
+        for (const opt of group.options) selectedAddOns.delete(opt.name);
+        renderHeader();
+        renderBody();
+        renderFooter();
+      });
+    });
+  }
+
+  // Every required add-on group must meet its minimum before submitting —
+  // the sheet is meant to collect everything up front instead of leaning
+  // on the AI's needsClarification fallback.
+  function validate() {
+    for (const group of addOnGroups) {
+      const count = group.options.filter((o) => selectedAddOns.has(o.name)).length;
+      if (group.required && count < group.min) {
+        return `Choose at least ${group.min} from "${group.name}".`;
+      }
+    }
+    return null;
+  }
+
+  function renderFooter() {
+    itemSheetFooter.innerHTML = `
+      <div class="item-sheet-qty">
+        <button type="button" class="item-sheet-qty-btn" data-action="minus" aria-label="Decrease quantity">−</button>
+        <span class="item-sheet-qty-value">${quantity}</span>
+        <button type="button" class="item-sheet-qty-btn" data-action="plus" aria-label="Increase quantity">+</button>
+      </div>
+      <button type="button" class="item-sheet-add-btn" id="itemSheetAddBtn">Add · ₹${unitPrice().toFixed(0)}</button>
+    `;
+    itemSheetFooter.querySelector('[data-action="minus"]').addEventListener("click", () => {
+      if (quantity > 1) {
+        quantity -= 1;
+        renderFooter();
+      }
+    });
+    itemSheetFooter.querySelector('[data-action="plus"]').addEventListener("click", () => {
+      if (quantity < 10) {
+        quantity += 1;
+        renderFooter();
+      }
+    });
+    document.getElementById("itemSheetAddBtn").addEventListener("click", async () => {
+      const error = validate();
+      itemSheetBody.querySelector(".item-sheet-validation-error")?.remove();
+      if (error) {
+        const errorEl = document.createElement("p");
+        errorEl.className = "item-sheet-validation-error";
+        errorEl.textContent = error;
+        itemSheetBody.appendChild(errorEl);
+        itemSheetBody.scrollTop = itemSheetBody.scrollHeight;
+        return;
+      }
+      closeItemSheet();
+      await confirmChatItemAdd(
+        chatItem,
+        {
+          size: sizes[0].name ? selectedSize : undefined,
+          quantity,
+          options: [...selectedOptions],
+          addOns: [...selectedAddOns],
+        },
+        cardWrap,
+        resetCardToIdle
+      );
+    });
+  }
+
+  renderHeader();
+  renderBody();
+  renderFooter();
+
+  itemSheetBackdrop.hidden = false;
+  void itemSheetBackdrop.offsetWidth;
+  itemSheetBackdrop.classList.add("active");
+}
+
 // Conversation sent to the AI as context — {role: "user"|"assistant", content}.
 // Starts empty; the seed bubbles are decorative and not real history.
 const chatHistory = [];
@@ -1008,6 +1375,39 @@ function lockChatInput(locked) {
   orderLockedBanner.hidden = !locked;
 }
 
+const orderLockedSubtitle = document.getElementById("orderLockedSubtitle");
+const orderLockedStats = document.getElementById("orderLockedStats");
+
+// Fills the "order placed" card with only what actually exists — no
+// fabricated ETA/kitchen-stage data (the order model has no such field; see
+// confirmOrder in server.js). total/orderType come from the pre-confirm
+// order snapshot (see sendChatMessage's orderBeforeThisTurn — the backend
+// resets the order to empty the instant it confirms). The order id isn't in
+// that snapshot (it's only generated during confirmation), but the
+// confirmation reply text always states it verbatim ("Order #<uuid>"), so
+// it's parsed out of there instead.
+function populateOrderLockedBanner(order, replyText) {
+  const orderTypeLabel = { pickup: "pickup", delivery: "delivery", dine_in: "dine-in" }[order && order.orderType] || "your order";
+  orderLockedSubtitle.textContent = `South Indian Cafe is on it — ${orderTypeLabel}.`;
+  const stats = [];
+  // The AI paraphrases the confirmation freely (see confirmOrder's tool
+  // result vs. the model's own final reply text) — it isn't guaranteed to
+  // say "Order #<id>" verbatim, so match the order id's own UUID shape
+  // instead of any particular surrounding wording.
+  const orderIdMatch = (replyText || "").match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  if (orderIdMatch) {
+    stats.push(
+      `<div class="order-locked-stat"><span class="order-locked-stat-label">Order</span><span class="order-locked-stat-value">#${orderIdMatch[0].slice(-6).toUpperCase()}</span></div>`
+    );
+  }
+  if (order && order.total != null) {
+    stats.push(
+      `<div class="order-locked-stat"><span class="order-locked-stat-label">To pay</span><span class="order-locked-stat-value">${formatMoney(order.total)}</span></div>`
+    );
+  }
+  orderLockedStats.innerHTML = stats.join("");
+}
+
 // Once an order is confirmed, every quick-reply/Add control still sitting
 // in the scrollback from earlier turns is stale — tapping one would try to
 // act on an order that's already been placed and reset. Disable them in
@@ -1015,7 +1415,7 @@ function lockChatInput(locked) {
 function disableChatHistoryInteractions() {
   chatArea
     .querySelectorAll(
-      ".chat-reply-option, .chat-item-add-button, .chat-item-qty-stepper button, .chat-item-qty-confirm, .chat-cart-summary-place-btn, .review-item-remove"
+      ".chat-reply-option, .chat-item-add-button, .chat-item-qty-stepper button, .chat-item-qty-confirm, .chat-cart-summary-place-btn, .chat-cart-summary-more-btn, .review-item-change, .chat-details-form-save, .chat-details-form-later"
     )
     .forEach((el) => {
       el.disabled = true;
@@ -1027,6 +1427,14 @@ async function sendChatMessage(text) {
   sendButton.disabled = true;
   const typingStartedAt = Date.now();
   showTypingIndicator();
+
+  // The order this turn might confirm is still state.order right now — the
+  // backend resets it to empty the instant it's confirmed (so the next
+  // order starts fresh), and apiSend below overwrites state.order with that
+  // already-reset order before this function ever sees the response. Snap
+  // a copy now so populateOrderLockedBanner has real total/orderType to
+  // show, not the reset order's null/₹0 (see populateOrderLockedBanner).
+  const orderBeforeThisTurn = state.order ? { ...state.order } : null;
 
   try {
     const data = await apiSend("POST", "/api/chat", { message: text, history: chatHistory });
@@ -1065,6 +1473,7 @@ async function sendChatMessage(text) {
     updateCartCount();
 
     if (data.orderJustConfirmed) {
+      populateOrderLockedBanner(orderBeforeThisTurn, data.reply);
       lockChatInput(true);
       disableChatHistoryInteractions();
     }
@@ -1114,6 +1523,13 @@ startOverButton.addEventListener("click", () => {
   checkoutStarted = false;
   appendMessage("bot", "Ready when you are — what would you like today?");
   appendReplyOptions(WELCOME_QUICK_REPLIES, { skipIcon: true });
+});
+
+// "Track it" — real navigation to the customer's own order history (the
+// closest thing to order tracking the backend actually exposes; there's no
+// kitchen-stage/ETA data to show a live progress stepper against).
+document.getElementById("trackOrderButton").addEventListener("click", () => {
+  closeChatWindow("orders");
 });
 
 // --- Speech-to-text (mic button) ------------------------------------------
@@ -1352,6 +1768,68 @@ function showChatWelcome() {
   }, 1100);
 }
 
+// First-open-only splash (see .chat-splash in style.css) — an animated
+// gradient mesh + "Hey there!" greeting shown once, in front of the real
+// chat window, before handing off to showChatWelcome's usual typing
+// indicator + "Vanakkam!" flow. Purely a one-time pre-roll: nothing about
+// the existing chat-open flow changes once this finishes (or is skipped).
+// Plays for CHAT_SPLASH_MS, or ends immediately if the customer taps
+// "Start chatting" (see chatSplashSkipButton below) instead of waiting.
+const chatSplash = document.getElementById("chatSplash");
+const chatSplashSkipButton = document.getElementById("chatSplashSkipButton");
+let chatSplashPlayed = false;
+let chatSplashTimer = null;
+const CHAT_SPLASH_MS = 10000;
+
+function playChatSplash(onDone) {
+  chatSplashPlayed = true;
+  chatSplash.hidden = false;
+  // Force layout so the .active class below actually transitions in
+  // instead of the browser coalescing hidden->active into one paint.
+  void chatSplash.offsetWidth;
+  chatSplash.classList.add("active");
+
+  let finished = false;
+  function finish() {
+    if (finished) return;
+    finished = true;
+    if (chatSplashTimer) {
+      clearTimeout(chatSplashTimer);
+      chatSplashTimer = null;
+    }
+    chatSplash.classList.remove("active");
+    chatSplash.classList.add("leaving");
+    const onTransitionEnd = (event) => {
+      if (event.target !== chatSplash) return;
+      chatSplash.removeEventListener("transitionend", onTransitionEnd);
+      chatSplash.hidden = true;
+      chatSplash.classList.remove("leaving");
+      onDone();
+    };
+    chatSplash.addEventListener("transitionend", onTransitionEnd);
+  }
+
+  chatSplashTimer = setTimeout(finish, CHAT_SPLASH_MS);
+  // Reassigning (not addEventListener) so a second playChatSplash call —
+  // shouldn't happen given the chatSplashPlayed guard, but kept safe —
+  // can't stack duplicate handlers.
+  chatSplashSkipButton.onclick = finish;
+}
+
+// Bails out of a still-playing splash cleanly (see closeChatWindow) —
+// otherwise its pending timer/listener could still fire after the chat
+// window itself has already closed.
+function cancelChatSplash() {
+  if (chatSplashTimer) {
+    clearTimeout(chatSplashTimer);
+    chatSplashTimer = null;
+  }
+  chatSplash.hidden = true;
+  chatSplash.classList.remove("active", "leaving");
+}
+
+document.getElementById("chatSplashCloseButton").addEventListener("click", closeChatWindow);
+
 function showView(name) {
   allPanels.forEach((panel) => panel.classList.toggle("active", panel.id === `view-${name}`));
   tabBar.hidden = true;
@@ -1360,7 +1838,13 @@ function showView(name) {
   mainHeader.hidden = name === "chat";
   updateCartCount();
   updateRobocapFloaterVisibility();
-  if (name === "chat") showChatWelcome();
+  if (name === "chat") {
+    if (!chatSplashPlayed) {
+      playChatSplash(showChatWelcome);
+    } else {
+      showChatWelcome();
+    }
+  }
 }
 
 tabBar.addEventListener("click", (event) => {
@@ -1404,12 +1888,13 @@ function openChatFromFloater() {
 // #view-chat.active's grow-in) before actually switching away from the
 // chat view — without this, closing would just snap instantly instead of
 // visibly returning to the bubble.
-function closeChatWindow() {
+function closeChatWindow(destinationTab = "menu") {
+  cancelChatSplash();
   viewChatEl.classList.add("closing");
   const onAnimationEnd = () => {
     viewChatEl.classList.remove("closing");
     viewChatEl.removeEventListener("animationend", onAnimationEnd);
-    showTab("menu");
+    showTab(destinationTab);
   };
   viewChatEl.addEventListener("animationend", onAnimationEnd);
 }
@@ -1530,30 +2015,23 @@ function updateCartCount() {
   // transcript — pad the scroll area so the last message can still scroll
   // fully into view above it instead of being covered.
   chatArea.classList.toggle("chat-area--fab-padding", !floatingCartButton.hidden);
-  updateChatCartBar(count);
+  updateComposerCartBadge(count);
 }
 
-const chatCartBar = document.getElementById("chatCartBar");
-const chatCartBarCount = document.getElementById("chatCartBarCount");
-const chatCartBarTotal = document.getElementById("chatCartBarTotal");
-const chatCartBarButton = document.getElementById("chatCartBarButton");
+const composerCartBadge = document.getElementById("composerCartBadge");
 
-// A persistent bar pinned above the chat input whenever the cart has
-// items — a second, always-visible entry point into the same in-chat cart
-// summary the "View Cart" chip already offers (see appendCartSummary).
-function updateChatCartBar(count) {
+// Item-count badge on the composer's cart icon — replaces the old sticky
+// "View Cart" bar (redundant with this icon, which is always visible
+// anyway) as the at-a-glance cart indicator inside the chat window.
+function updateComposerCartBadge(count) {
   const itemCount = count != null ? count : state.order ? state.order.items.reduce((sum, i) => sum + i.quantity, 0) : 0;
-  // Hidden once checkout starts (see the "Proceed to checkout" / "No, let
-  // me change something" handling in appendReplyOptions) so it doesn't
-  // compete with the review/confirm flow — it comes back if the customer
-  // backs out before the order is actually placed.
-  chatCartBar.hidden = itemCount === 0 || checkoutStarted;
-  if (chatCartBar.hidden) return;
-  chatCartBarCount.textContent = String(itemCount);
-  chatCartBarTotal.textContent = formatMoney(state.order.total);
+  composerCartBadge.hidden = itemCount === 0;
+  if (itemCount > 0) composerCartBadge.textContent = itemCount > 99 ? "99+" : String(itemCount);
 }
 
-chatCartBarButton.addEventListener("click", () => {
+// Composer's cart icon — opens the same in-chat cart summary the "View
+// Cart" chip already offers (see appendCartSummary).
+document.getElementById("composerCartButton").addEventListener("click", () => {
   appendCartSummary();
 });
 

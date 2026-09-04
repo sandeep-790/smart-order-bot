@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>South Indian Cafe</title>
+  <!-- Figtree: used only inside the RoboCap chat window (see #view-chat's
+       font-family in style.css) — Menu/Cart/Orders keep the system font. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -52,55 +57,88 @@
 
     <!-- RoboCap chat: a pushed view (not a tab) reached via the draggable floater. -->
     <section class="tab-panel pushed-view" id="view-chat">
-      <header class="robocap-overlay-header">
-        <div class="robocap-overlay-title">
-          <span class="robocap-overlay-icon">
-            <svg viewBox="0 0 40 40" width="28" height="28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <circle cx="20" cy="20" r="20" fill="#2f5fa8" />
-              <line x1="20" y1="14" x2="20" y2="9" stroke="#fff" stroke-width="2" stroke-linecap="round" />
-              <circle cx="20" cy="8" r="2" fill="#fff" />
-              <rect x="10" y="14" width="20" height="16" rx="6" fill="#fff" />
-              <circle cx="16" cy="22" r="2.2" fill="#2f5fa8" />
-              <circle cx="24" cy="22" r="2.2" fill="#2f5fa8" />
-              <rect x="15" y="27" width="10" height="2" rx="1" fill="#2f5fa8" />
-            </svg>
-          </span>
-          <div class="robocap-overlay-title-text">
-            <h1>RoboCap</h1>
-            <p>Your virtual captain</p>
-          </div>
+      <!-- No header bar — just a floating close button over the chat
+           content, so the full window height is usable transcript space
+           (same visual treatment the splash already used for its own
+           close button). -->
+      <button type="button" id="chatCloseButton" class="overlay-icon-button chat-floating-close" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <line x1="5" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          <line x1="19" y1="5" x2="5" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+      </button>
+      <!-- First-open-only splash (see playChatSplash in app.js) — an animated
+           gradient mesh + greeting, shown once before the real chat window
+           (typing indicator + "Vanakkam!" greeting) takes over. Covers the
+           whole window (including the header behind it) — its own close
+           button (not the header's, which is visually hidden underneath)
+           is what stays reachable to bail out mid-splash. -->
+      <div class="chat-splash" id="chatSplash" hidden>
+        <div class="chat-splash-mesh" aria-hidden="true"></div>
+        <button type="button" id="chatSplashCloseButton" class="overlay-icon-button chat-splash-close" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <line x1="5" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <line x1="19" y1="5" x2="5" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+        <div class="chat-splash-content">
+          <p class="chat-splash-hey">Hey there!👋</p>
+          <p class="chat-splash-title">I'm RoboCap<br />Your Virtual Captain</p>
+          <p class="chat-splash-subtitle">Tell me what you're in the mood for and I'll help you find it.</p>
+          <button type="button" id="chatSplashSkipButton" class="chat-splash-skip-btn">Start chatting →</button>
         </div>
-        <div class="robocap-overlay-header-right">
-          <button type="button" id="chatCloseButton" class="overlay-close-button" aria-label="Close">
+      </div>
+
+      <!-- Item customization sheet (see openItemCustomizeSheet in app.js) —
+           opened by tapping "Add" on any chat item card. Content is built
+           fresh into .item-sheet-body/-footer each time; this shell just
+           provides the backdrop + open/close animation, same pattern as
+           #chatSplash above. -->
+      <div class="item-sheet-backdrop" id="itemSheetBackdrop" hidden>
+        <div class="item-sheet">
+          <button type="button" id="itemSheetCloseButton" class="overlay-icon-button item-sheet-close" aria-label="Close">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <line x1="5" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
               <line x1="19" y1="5" x2="5" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
             </svg>
           </button>
+          <div class="item-sheet-scroll">
+            <div class="item-sheet-header" id="itemSheetHeader"></div>
+            <div class="item-sheet-body" id="itemSheetBody"></div>
+          </div>
+          <div class="item-sheet-footer" id="itemSheetFooter"></div>
         </div>
-      </header>
+      </div>
+
       <main class="chat-area" id="chatArea" role="log" aria-live="polite">
         <!-- Messages are inserted here -->
       </main>
 
       <div class="order-locked-banner" id="orderLockedBanner" hidden>
-        <p>🎉 Your order has been placed!</p>
-        <button type="button" id="startOverButton">Start a new order</button>
-      </div>
-
-      <div class="chat-cart-bar" id="chatCartBar" hidden>
-        <div class="chat-cart-bar-info">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <circle cx="9" cy="21" r="1.4" fill="currentColor"/><circle cx="18" cy="21" r="1.4" fill="currentColor"/>
-            <path d="M2.5 3h2l2.2 12.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 8H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <div class="order-locked-label">Order placed</div>
+        <div class="order-locked-check" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 13l4 4 10-10" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
-          <span><b id="chatCartBarCount">0</b> items · <span id="chatCartBarTotal">₹0.00</span></span>
         </div>
-        <button type="button" id="chatCartBarButton" class="chat-cart-bar-button">View Cart →</button>
+        <p class="order-locked-title">You're all set</p>
+        <p class="order-locked-subtitle" id="orderLockedSubtitle">Your order is on its way to the kitchen.</p>
+        <div class="order-locked-stats" id="orderLockedStats"></div>
+        <div class="order-locked-actions">
+          <button type="button" id="trackOrderButton" class="order-locked-track-btn">Track it</button>
+          <button type="button" id="startOverButton">Start a new order</button>
+        </div>
       </div>
 
       <form class="chat-input-bar" id="chatForm">
         <div class="chat-input-wrap">
+          <button type="button" id="composerCartButton" class="chat-input-cart-button" aria-label="View cart">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="9" cy="21" r="1.4" fill="currentColor"/><circle cx="18" cy="21" r="1.4" fill="currentColor"/>
+              <path d="M2.5 3h2l2.2 12.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 8H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="chat-input-cart-badge" id="composerCartBadge" hidden>0</span>
+          </button>
           <input
             type="text"
             id="chatInput"
@@ -129,7 +167,7 @@
       </form>
       <p class="chat-ai-disclaimer">
         RoboCap is always learning. Powered by
-        <img src="assets/petpooja-logo.png" alt="Petpooja" class="chat-ai-disclaimer-logo" onerror="this.hidden = true" />
+        <img src="assets/petpooja-logo-white.svg" alt="Petpooja" class="chat-ai-disclaimer-logo" onerror="this.hidden = true" />
       </p>
     </section>
 
