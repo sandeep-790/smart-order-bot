@@ -390,13 +390,6 @@ const REPLY_ICON_DINEIN =
   '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
   '<circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/>' +
   '<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/></svg>';
-const REPLY_ICON_CONFIRM =
-  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-  '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>' +
-  '<path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const REPLY_ICON_EDIT =
-  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-  '<path d="M4 20l1-4L16 5l3 3L8 19l-4 1Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
 const REPLY_ICON_CHILI =
   '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
   '<path d="M14 3c2 1 2 3 1 4-3 3-8 8-8 12a3 3 0 0 0 5 2c4-4 8-9 8-12 0-2-1-4-3-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
@@ -424,8 +417,11 @@ const REPLY_CHIP_RULES = [
   [/pickup/i, REPLY_ICON_PICKUP, "blue"],
   [/delivery/i, REPLY_ICON_DELIVERY, "blue"],
   [/dine.?in/i, REPLY_ICON_DINEIN, "blue"],
-  [/^yes\b|confirm/i, REPLY_ICON_CONFIRM, "mint"],
-  [/^no\b|change something/i, REPLY_ICON_EDIT, "neutral"],
+  // Yes/No confirmation chips use the same outlined-orange "primary" style
+  // as the Half/Full size pills — a plain binary choice, not a category
+  // with its own flavor color like fulfillment/spice-level chips.
+  [/^yes\b|confirm/i, null, "primary"],
+  [/^no\b|change something/i, null, "primary"],
   [/mild|medium|spicy/i, REPLY_ICON_CHILI, "berry"],
   [/^\d+$/, REPLY_ICON_QUANTITY, "amber"],
   [/view cart/i, REPLY_ICON_CART, "blue"],
@@ -691,17 +687,22 @@ function appendDetailsForm(fulfillmentType) {
 // then re-rendered in place by changeChatCartItemQuantity whenever a line
 // is adjusted, so tapping "View Cart" keeps the customer on the chat tab
 // instead of jumping to a separate view.
-async function appendCartSummary() {
+async function appendCartSummary(options = {}) {
   const block = document.createElement("div");
   block.className = "chat-cart-summary";
   chatArea.appendChild(block);
-  await renderCartSummaryBlock(block);
+  await renderCartSummaryBlock(block, options);
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
 const FULFILLMENT_LABELS = { pickup: "Pickup", delivery: "Delivery", dine_in: "Dine-in" };
 
-async function renderCartSummaryBlock(block) {
+// showActions is false for the final pre-checkout review (see
+// sendChatMessage's isOrderSummary handling) — present_confirmation_options
+// already renders its own Yes/No chips right below this card, so a second
+// "Place order" button here would just be a redundant, confusing way to do
+// the same thing.
+async function renderCartSummaryBlock(block, { showActions = true } = {}) {
   block.innerHTML = '<span class="chat-item-add-status">Loading cart…</span>';
   try {
     const data = await apiGet("/api/order/review");
@@ -748,7 +749,7 @@ async function renderCartSummaryBlock(block) {
           : ""
       }
       ${
-        review.items.length > 0
+        review.items.length > 0 && showActions
           ? `<div class="chat-cart-summary-actions">
               <button type="button" class="chat-cart-summary-more-btn">Add more</button>
               <button type="button" class="chat-cart-summary-place-btn">Place order</button>
@@ -762,12 +763,12 @@ async function renderCartSummaryBlock(block) {
       const item = review.items.find((i) => String(i.lineId) === lineId);
       row
         .querySelector('[data-action="increase"]')
-        .addEventListener("click", () => changeChatCartItemQuantity(lineId, item.quantity + 1, block));
+        .addEventListener("click", () => changeChatCartItemQuantity(lineId, item.quantity + 1, block, { showActions }));
       row
         .querySelector('[data-action="decrease"]')
-        .addEventListener("click", () => changeChatCartItemQuantity(lineId, item.quantity - 1, block));
+        .addEventListener("click", () => changeChatCartItemQuantity(lineId, item.quantity - 1, block, { showActions }));
       row.querySelector('[data-action="change"]').addEventListener("click", () => {
-        openItemCustomizeSheetForEdit(item, block);
+        openItemCustomizeSheetForEdit(item, block, { showActions });
       });
     });
 
@@ -801,7 +802,7 @@ async function renderCartSummaryBlock(block) {
 // Shared by every qty +/-/remove control inside an in-chat cart summary —
 // reuses the same PATCH/DELETE endpoints as the Cart view's changeItemQuantity,
 // then re-renders this block in place and keeps the sticky cart bar in sync.
-async function changeChatCartItemQuantity(lineId, newQty, block) {
+async function changeChatCartItemQuantity(lineId, newQty, block, options) {
   try {
     if (newQty < 1) {
       await apiSend("DELETE", `/api/order/items/${lineId}`);
@@ -809,7 +810,7 @@ async function changeChatCartItemQuantity(lineId, newQty, block) {
       await apiSend("PATCH", `/api/order/items/${lineId}`, { quantity: newQty });
     }
     updateCartCount();
-    await renderCartSummaryBlock(block);
+    await renderCartSummaryBlock(block, options);
     chatArea.scrollTop = chatArea.scrollHeight;
   } catch (err) {
     alert(err.message);
@@ -1168,13 +1169,17 @@ async function openItemCustomizeSheet(chatItem, cardWrap, resetCardToIdle, editC
             <span>Select Type</span>
             <span class="item-sheet-badge item-sheet-badge--required">Choose any 1</span>
           </div>
-          <div class="item-sheet-pill-list">
+          <div class="item-sheet-radio-list">
             ${sizes
               .map(
                 (s) => `
-              <button type="button" class="item-sheet-pill${s.name === selectedSize ? " item-sheet-pill--selected" : ""}" data-size="${escapeHtml(
-                  s.name
-                )}">${escapeHtml(s.name)} · ₹${Number(s.price).toFixed(0)}</button>`
+              <label class="item-sheet-radio-row${s.name === selectedSize ? " item-sheet-radio-row--selected" : ""}">
+                <span>${escapeHtml(s.name)}</span>
+                <span class="item-sheet-radio-row-right">
+                  <span class="item-sheet-row-price">₹${Number(s.price).toFixed(0)}</span>
+                  <input type="radio" name="itemSheetSize" value="${escapeHtml(s.name)}" ${s.name === selectedSize ? "checked" : ""} />
+                </span>
+              </label>`
               )
               .join("")}
           </div>
@@ -1243,9 +1248,9 @@ async function openItemCustomizeSheet(chatItem, cardWrap, resetCardToIdle, editC
   }
 
   function wireBodyEvents() {
-    itemSheetBody.querySelectorAll("[data-size]").forEach((button) => {
-      button.addEventListener("click", () => {
-        selectedSize = button.dataset.size;
+    itemSheetBody.querySelectorAll('input[name="itemSheetSize"]').forEach((input) => {
+      input.addEventListener("change", () => {
+        selectedSize = input.value;
         renderHeader();
         renderBody();
         renderFooter();
@@ -1363,7 +1368,7 @@ async function openItemCustomizeSheet(chatItem, cardWrap, resetCardToIdle, editC
 // The review row (from GET /api/order/review) doesn't carry itemId, so the
 // matching menu item — needed for the sheet's size/option/add-on choices —
 // is looked up by name instead (menu item names are unique).
-async function openItemCustomizeSheetForEdit(reviewItem, block) {
+async function openItemCustomizeSheetForEdit(reviewItem, block, options) {
   if (state.menu.length === 0) await loadMenu();
   const menuItem = state.menu.find((m) => m.name === reviewItem.name);
   const displayItem = {
@@ -1382,7 +1387,7 @@ async function openItemCustomizeSheetForEdit(reviewItem, block) {
     initialQuantity: reviewItem.quantity,
     onSaved: async () => {
       updateCartCount();
-      await renderCartSummaryBlock(block);
+      await renderCartSummaryBlock(block, options);
     },
   });
 }
@@ -1477,11 +1482,16 @@ async function sendChatMessage(text) {
     const data = await apiSend("POST", "/api/chat", { message: text, history: chatHistory });
     chatHistory.push({ role: "user", content: text });
     chatHistory.push({ role: "assistant", content: data.reply });
-    const speakText = data.orderJustConfirmed
-      ? "Your order is confirmed. It will be ready shortly."
-      : data.isOrderSummary
-      ? "Here is your final order summary. Shall I place the order?"
-      : data.reply;
+    // The AI is asked (see system-prompt.md's Confirmation Rules) to keep
+    // this turn's reply to one short line and let the order card below
+    // carry the item/price detail — but that's a prompt instruction, not a
+    // guarantee, and it doesn't reliably comply. Override what's actually
+    // *shown* for this turn so the itemized breakdown never renders twice
+    // (once as text, once as the card) regardless of what the AI wrote;
+    // the real reply still goes into chatHistory so the AI's own context
+    // stays accurate.
+    const displayText = data.isOrderSummary ? "Here's your order — take a look below. Shall I place it?" : data.reply;
+    const speakText = data.orderJustConfirmed ? "Your order is confirmed. It will be ready shortly." : displayText;
     // Start the TTS request now, during the (purely cosmetic) typing-loader
     // pause below, instead of after the message appears — by the time the
     // bubble renders, the audio's already been buffering for that pause's
@@ -1494,14 +1504,29 @@ async function sendChatMessage(text) {
     const typingElapsed = Date.now() - typingStartedAt;
     if (typingElapsed < MIN_TYPING_MS) await sleep(MIN_TYPING_MS - typingElapsed);
     removeTypingIndicator();
-    appendMessage("bot", data.reply, { speakText, speechPreloaded: true });
+    appendMessage("bot", displayText, { speakText, speechPreloaded: true });
+
+    // Final pre-checkout review — the order itself renders as a card here
+    // (present_confirmation_options' own Yes/No chips follow right after),
+    // instead of the AI reciting every item/price in the message text.
+    if (data.isOrderSummary) {
+      await appendCartSummary({ showActions: false });
+    }
 
     const isItemList = Array.isArray(data.quickReplies) && data.quickReplies.length > 0 && typeof data.quickReplies[0] === "object";
     if (isItemList) {
       if (data.isComparison && data.quickReplies.length === 2) {
         appendComparisonCards(data.quickReplies, data.comparisonHighlights);
       } else {
-        const items = limitNextItemListTo ? data.quickReplies.slice(0, limitNextItemListTo) : data.quickReplies;
+        let items = data.quickReplies;
+        if (limitNextItemListTo) {
+          // The AI doesn't always pick get_recommendations specifically for
+          // this — get_bestsellers, for one, doesn't exclude cart items on
+          // its own — so re-exclude them here regardless of which tool it
+          // actually called, rather than trust wording alone.
+          const cartItemIds = new Set(state.order ? state.order.items.map((i) => i.itemId) : []);
+          items = items.filter((item) => !cartItemIds.has(item.itemId)).slice(0, limitNextItemListTo);
+        }
         appendItemList(items);
       }
     } else if (Array.isArray(data.quickReplies) && data.quickReplies.length > 0) {
