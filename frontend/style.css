@@ -68,15 +68,42 @@
    content, not the flat dark background alone. Pure CSS, ::before so it
    never intercepts clicks/scroll and always sits behind real content
    (z-index: -1 within #view-chat's own isolated stacking context). */
+/* Aurora mesh background — a slow-drifting cluster of soft orange/blue/
+   purple blobs (same palette as the first-open splash, for cohesion)
+   under a faint dot grid and a corner vignette for depth. Only
+   background-position animates (cheap — no filter/blur repaint), and
+   every blob stays low-opacity/soft-edged so transcript text on top
+   never loses contrast. inset is negative so the drift never reveals a
+   hard edge at the boundary. */
 #view-chat::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background:
-    radial-gradient(280px 280px at 0% 14%, #f36a2073, transparent 68%),
-    radial-gradient(260px 260px at 100% 52%, #f36a2059, transparent 68%);
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    radial-gradient(340px 340px at 8% 10%, #f36a2073, transparent 70%),
+    radial-gradient(300px 300px at 95% 20%, #5b7cf05e, transparent 70%),
+    radial-gradient(320px 320px at 15% 92%, #a855f75e, transparent 70%),
+    radial-gradient(280px 280px at 92% 88%, #f36a2050, transparent 70%);
+  background-size: 20px 20px, auto, auto, auto, auto;
+  /* Slow hue-rotate "breathing" — the whole mesh's colors drift through a
+     narrow range over a long cycle, cheap (GPU filter, no layout/paint
+     thrash) and reads as a living gradient rather than four static blobs. */
+  animation: chat-mesh-breathe 18s ease-in-out infinite alternate;
+}
+
+@keyframes chat-mesh-breathe {
+  0% {
+    filter: hue-rotate(0deg) brightness(1);
+  }
+  50% {
+    filter: hue-rotate(18deg) brightness(1.08);
+  }
+  100% {
+    filter: hue-rotate(-10deg) brightness(0.96);
+  }
 }
 
 * {
@@ -740,9 +767,11 @@ body {
 
 .item-sheet-close {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: 12px;
+  right: 12px;
   z-index: 1;
+  width: 28px;
+  height: 28px;
   background: rgba(0, 0, 0, 0.4);
   border-color: rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(6px);
@@ -757,7 +786,9 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding-bottom: 16px;
+  /* Right padding reserves the close button's own column (see
+     .item-sheet-close) so it never sits over the price. */
+  padding: 0 40px 16px 0;
   margin-bottom: 12px;
   border-bottom: 1px solid var(--border);
 }
@@ -784,6 +815,9 @@ body {
 }
 
 .item-sheet-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 16px;
   font-weight: 700;
   color: var(--text);
@@ -801,7 +835,6 @@ body {
   font-size: 16px;
   font-weight: 700;
   color: var(--text);
-  padding-right: 28px;
 }
 
 .item-sheet-body {
@@ -1663,16 +1696,15 @@ body {
   max-width: 100%;
 }
 
-/* Welcome starters render as "mood tiles" (Figma's "What are you in the
-   mood for?" cards) — icon stacked above the label in a squared-off card,
-   not an inline pill. */
+/* Welcome starters render as squared-off tiles (Figma's "What are you in
+   the mood for?" cards), but with the emoji and label sharing one row
+   (not stacked) so the tile stays short instead of tall. */
 .chat-reply-options--welcome .chat-reply-option {
   width: 100%;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
   gap: 10px;
-  min-height: 66px;
-  padding: 12px;
+  padding: 14px 12px;
   border-radius: var(--radius);
   white-space: normal;
   text-align: left;
@@ -1758,19 +1790,20 @@ body {
 
 /* Item-customization prompts (size, etc.) — solid pill, no outline, no
    icon (see appendReplyOptions), closer to a real button than a tag. */
+/* Outlined, not filled — same orange-border/transparent-background
+   language as the item cards' own Add button, rather than a solid block
+   of color. */
 .chat-reply-option--primary {
   padding: 8px 14px;
-  border: none;
-  background: var(--accent);
-  color: #fff;
+  border: 1.5px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
   font-weight: 700;
-  box-shadow: 0 3px 10px rgba(47, 95, 168, 0.28);
+  box-shadow: none;
 }
 .chat-reply-option--primary:hover {
   background: var(--accent);
-  opacity: 0.88;
   color: #fff;
-  border-color: transparent;
 }
 
 /* In-chat cart summary (View Cart chip / composer cart icon) — a floating
@@ -1875,11 +1908,6 @@ body {
 
 .chat-cart-summary .review-item-detail {
   font-size: 12px;
-  color: var(--text-muted);
-}
-
-.chat-cart-summary .review-item-detail b {
-  font-weight: 600;
   color: var(--text-muted);
 }
 
@@ -2111,13 +2139,19 @@ body {
 }
 
 .chat-compare-card-details {
+  /* Fills the rest of the card's height (cards in a row stretch to match
+     the tallest one — see .chat-item-list's default align-items:stretch),
+     so the price/Add row below can be pinned to the bottom regardless of
+     how long this particular item's description is. */
+  flex: 1;
   padding: 10px;
   display: flex;
   flex-direction: column;
 }
 
 .chat-compare-card-details .chat-item-row-action {
-  margin-top: 8px;
+  margin-top: auto;
+  padding-top: 8px;
 }
 
 /* Sits within the photo itself, a little above its vertical middle (the

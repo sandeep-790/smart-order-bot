@@ -556,7 +556,7 @@ function executeTool(name, args, order, activeSessionId) {
     case "present_notes_options":
       return {
         reply: "Would you like any special instructions for your order?",
-        quickReplies: ["Pack items separately", "No special instructions", "Something else"],
+        quickReplies: ["No special instructions"],
       };
     case "compare_items": {
       const item1 = MENU.items.find((m) => m.id === args.itemId1);
