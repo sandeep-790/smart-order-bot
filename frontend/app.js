@@ -1813,7 +1813,6 @@ function showTab(name) {
   if (name === "menu" && state.menu.length === 0) loadMenu();
   if (name === "orders") loadOrderHistory();
   updateCartCount();
-  updateRobocapFloaterVisibility();
 }
 
 // The welcome message + starter chips aren't rendered until the chat
@@ -1893,7 +1892,10 @@ function cancelChatSplash() {
   chatSplash.classList.remove("active", "leaving");
 }
 
-document.getElementById("chatSplashCloseButton").addEventListener("click", closeChatWindow);
+// Wrapped in an arrow function, not passed directly — addEventListener
+// would otherwise hand closeChatWindow the click Event as its
+// destinationTab argument, clobbering the "menu" default.
+document.getElementById("chatSplashCloseButton").addEventListener("click", () => closeChatWindow());
 
 function showView(name) {
   allPanels.forEach((panel) => panel.classList.toggle("active", panel.id === `view-${name}`));
@@ -1902,7 +1904,6 @@ function showView(name) {
   // Checkout are lighter pushed views that keep the main header above them.
   mainHeader.hidden = name === "chat";
   updateCartCount();
-  updateRobocapFloaterVisibility();
   if (name === "chat") {
     if (!chatSplashPlayed) {
       playChatSplash(showChatWelcome);
@@ -1928,31 +1929,31 @@ floatingCartButton.addEventListener("click", () => {
   showView("cart");
 });
 
-const robocapFloater = document.getElementById("robocapFloater");
+const robocapBanner = document.getElementById("robocapBanner");
+const robocapBannerQuick = document.getElementById("robocapBannerQuick");
 const viewChatEl = document.getElementById("view-chat");
 
 // Anchors the chat window's grow-in animation (see #view-chat.active in
-// style.css) to wherever the floater actually is right now, so the window
-// visibly opens out of the bubble instead of just fading in centered.
-function setChatOriginFromFloater() {
+// style.css) to the given element's position, so the window visibly opens
+// out of it instead of just fading in centered.
+function setChatOriginFromElement(el) {
   const appEl = document.querySelector(".chat-app");
   const appRect = appEl.getBoundingClientRect();
-  const floaterRect = robocapFloater.getBoundingClientRect();
-  const originX = ((floaterRect.left + floaterRect.width / 2 - appRect.left) / appRect.width) * 100;
-  const originY = ((floaterRect.top + floaterRect.height / 2 - appRect.top) / appRect.height) * 100;
+  const elRect = el.getBoundingClientRect();
+  const originX = ((elRect.left + elRect.width / 2 - appRect.left) / appRect.width) * 100;
+  const originY = ((elRect.top + elRect.height / 2 - appRect.top) / appRect.height) * 100;
   viewChatEl.style.setProperty("--chat-origin-x", `${originX}%`);
   viewChatEl.style.setProperty("--chat-origin-y", `${originY}%`);
 }
 
-function openChatFromFloater() {
-  setChatOriginFromFloater();
+function openChatFromBanner() {
+  setChatOriginFromElement(robocapBanner);
   showView("chat");
 }
 
-// Plays the shrink-back-into-the-floater animation (the reverse of
+// Plays the shrink-back-into-the-banner animation (the reverse of
 // #view-chat.active's grow-in) before actually switching away from the
-// chat view — without this, closing would just snap instantly instead of
-// visibly returning to the bubble.
+// chat view — without this, closing would just snap instantly.
 function closeChatWindow(destinationTab = "menu") {
   cancelChatSplash();
   viewChatEl.classList.add("closing");
@@ -1964,107 +1965,35 @@ function closeChatWindow(destinationTab = "menu") {
   viewChatEl.addEventListener("animationend", onAnimationEnd);
 }
 
-// Draggable RoboCap bubble — Pointer Events cover mouse/touch/pen through
-// one code path. Repositions via left/top (switching off the CSS default
-// right/top the first time it's dragged), clamped to .chat-app's own
-// bounding box so it can never be dragged outside the visible app frame —
-// the same frame the floating cart pill and categories button already
-// live in. A tap (negligible pointer movement) opens the chat overlay; a
-// real drag just leaves it at the new spot.
-function initRobocapFloater() {
-  const appEl = document.querySelector(".chat-app");
-  const DRAG_THRESHOLD = 6;
-  let dragging = false;
-  let startClientX = 0;
-  let startClientY = 0;
-  let startLeft = 0;
-  let startTop = 0;
-  let moved = 0;
+// A subset of the welcome quick-replies, reused as tappable "quick
+// questions" on the banner — tapping one opens the chat and immediately
+// sends that message, instead of just opening to a blank conversation.
+const BANNER_QUICK_QUESTIONS = ["👨‍🍳 Recommends", "🔥 Today's special", "⭐ Show bestsellers", "🥗 Veg options"];
 
-  robocapFloater.addEventListener("pointerdown", (event) => {
-    const appRect = appEl.getBoundingClientRect();
-    const floaterRect = robocapFloater.getBoundingClientRect();
-    dragging = true;
-    moved = 0;
-    startClientX = event.clientX;
-    startClientY = event.clientY;
-    startLeft = floaterRect.left - appRect.left;
-    startTop = floaterRect.top - appRect.top;
-    // Can throw (NotFoundError) in edge cases where the browser doesn't
-    // consider this pointerId "active" yet — capture is a nice-to-have
-    // (keeps the drag tracking even if the pointer leaves the button's
-    // bounds), not a requirement, so failing silently is fine.
-    try {
-      robocapFloater.setPointerCapture(event.pointerId);
-    } catch (err) {
-      // ignore
-    }
-    robocapFloater.classList.add("dragging");
-  });
-
-  robocapFloater.addEventListener("pointermove", (event) => {
-    if (!dragging) return;
-    const dx = event.clientX - startClientX;
-    const dy = event.clientY - startClientY;
-    moved = Math.max(moved, Math.hypot(dx, dy));
-
-    const appRect = appEl.getBoundingClientRect();
-    // Never let the bubble sit on or above the Menu/Orders tab bar — the
-    // top of its drag range is the tab bar's own bottom edge, not the app
-    // frame's top.
-    const minTop = tabBar.getBoundingClientRect().bottom - appRect.top;
-    const maxLeft = appRect.width - robocapFloater.offsetWidth;
-    const maxTop = appRect.height - robocapFloater.offsetHeight;
-    const newLeft = Math.min(Math.max(startLeft + dx, 0), Math.max(maxLeft, 0));
-    const newTop = Math.min(Math.max(startTop + dy, minTop), Math.max(maxTop, minTop));
-
-    robocapFloater.style.right = "auto";
-    robocapFloater.style.left = `${newLeft}px`;
-    robocapFloater.style.top = `${newTop}px`;
-  });
-
-  function endDrag(event) {
-    if (!dragging) return;
-    dragging = false;
-    robocapFloater.classList.remove("dragging");
-    try {
-      if (robocapFloater.hasPointerCapture(event.pointerId)) {
-        robocapFloater.releasePointerCapture(event.pointerId);
-      }
-    } catch (err) {
-      // ignore
-    }
-    if (moved < DRAG_THRESHOLD) {
-      openChatFromFloater();
-      return;
-    }
-    // A real drag never leaves the bubble floating mid-screen — it sticks
-    // to whichever side (left/right) its center ended up closer to, same
-    // as a typical chat-head bubble.
-    const appRect = appEl.getBoundingClientRect();
-    const margin = 1;
-    const floaterWidth = robocapFloater.offsetWidth;
-    const currentLeft = parseFloat(robocapFloater.style.left) || 0;
-    const centerX = currentLeft + floaterWidth / 2;
-    const snapLeft = centerX < appRect.width / 2 ? margin : appRect.width - floaterWidth - margin;
-    robocapFloater.style.left = `${snapLeft}px`;
+function initRobocapBanner() {
+  for (const label of BANNER_QUICK_QUESTIONS) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "robocap-banner-quick-chip";
+    chip.textContent = label;
+    chip.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openChatFromBanner();
+      const text = label.replace(/^\p{Extended_Pictographic}\s*/u, "").trim();
+      sendChatMessage(text);
+    });
+    robocapBannerQuick.appendChild(chip);
   }
 
-  robocapFloater.addEventListener("pointerup", endDrag);
-  robocapFloater.addEventListener("pointercancel", endDrag);
-
-  // The CSS default `top` is a fixed guess — correct it once up front in
-  // case the tab bar renders taller than that on this device, so the
-  // bubble never starts out sitting on top of it.
-  const appRect = appEl.getBoundingClientRect();
-  const minTop = tabBar.getBoundingClientRect().bottom - appRect.top;
-  const floaterRect = robocapFloater.getBoundingClientRect();
-  const currentTop = floaterRect.top - appRect.top;
-  if (currentTop < minTop) {
-    robocapFloater.style.top = `${minTop + 12}px`;
-  }
+  robocapBanner.addEventListener("click", () => openChatFromBanner());
+  robocapBanner.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openChatFromBanner();
+    }
+  });
 }
-initRobocapFloater();
+initRobocapBanner();
 
 function updateCartCount() {
   const count = state.order ? state.order.items.reduce((sum, i) => sum + i.quantity, 0) : 0;
@@ -2100,28 +2029,20 @@ document.getElementById("composerCartButton").addEventListener("click", () => {
   appendCartSummary();
 });
 
-// The RoboCap floater is a Menu/Orders-only affordance, same rule as the
-// floating cart pill — hidden while the chat overlay itself (or Cart/
-// Checkout) is open, since there's nothing useful for it to open onto.
-function updateRobocapFloaterVisibility() {
-  const onMainTab = ["menu", "orders"].some((t) => document.getElementById(`tab-${t}`).classList.contains("active"));
-  robocapFloater.hidden = !onMainTab;
-}
-
 // --- Menu tab -------------------------------------------------------------
 
-const menuList = document.getElementById("menuList");
+const menuCategoriesContainer = document.getElementById("menuCategoriesContainer");
 const categoriesFloatButton = document.getElementById("categoriesFloatButton");
 const categoriesPopup = document.getElementById("categoriesPopup");
 
 async function loadMenu() {
-  menuList.innerHTML = '<p class="empty-state">Loading menu...</p>';
+  menuCategoriesContainer.innerHTML = '<p class="empty-state">Loading menu...</p>';
   try {
     const data = await apiGet("/api/menu");
     state.menu = data.items || [];
     renderMenu();
   } catch (err) {
-    menuList.innerHTML = '<p class="empty-state">Could not load the menu. Is the backend running?</p>';
+    menuCategoriesContainer.innerHTML = '<p class="empty-state">Could not load the menu. Is the backend running?</p>';
   }
 }
 
@@ -2130,7 +2051,7 @@ function categorySlug(category) {
 }
 
 function renderMenu() {
-  menuList.innerHTML = "";
+  menuCategoriesContainer.innerHTML = "";
 
   const categories = [...new Set(state.menu.map((item) => item.category))];
   for (const category of categories) {
@@ -2138,10 +2059,10 @@ function renderMenu() {
     heading.className = "menu-category";
     heading.id = categorySlug(category);
     heading.textContent = category;
-    menuList.appendChild(heading);
+    menuCategoriesContainer.appendChild(heading);
 
     for (const item of state.menu.filter((i) => i.category === category)) {
-      menuList.appendChild(buildMenuItemCard(item));
+      menuCategoriesContainer.appendChild(buildMenuItemCard(item));
     }
   }
 
@@ -2778,7 +2699,7 @@ if (state.sessionId) {
 // Closing RoboCap always lands on Menu specifically (not "whichever tab
 // was active before" — that's Cart/Checkout's back-button convention, and
 // opening the floater doesn't touch state.previousMainTab at all).
-document.getElementById("chatCloseButton").addEventListener("click", closeChatWindow);
+document.getElementById("chatCloseButton").addEventListener("click", () => closeChatWindow());
 
 // Menu is the landing page — showTab's own lazy-load only fires when it's
 // the *target* of a tab switch, so it never ran on load when Menu just
