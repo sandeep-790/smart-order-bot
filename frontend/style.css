@@ -42,10 +42,10 @@
   --chat-bg: #08090b;
   --surface: #131519;
   --accent: #f36a20;
-  --user-bubble: #131519;
+  --user-bubble: #000000;
   --user-bubble-text: #f7f7f8;
   --user-bubble-border: #f36a2066;
-  --bot-bubble: #131519;
+  --bot-bubble: #000000;
   --border: #ffffff1f;
   --text: #f7f7f8;
   --text-muted: #b9bbc0;
@@ -82,11 +82,11 @@
   z-index: -1;
   pointer-events: none;
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-    radial-gradient(340px 340px at 8% 10%, #f36a2040, transparent 70%),
-    radial-gradient(300px 300px at 95% 20%, #5b7cf030, transparent 70%),
-    radial-gradient(320px 320px at 15% 92%, #a855f730, transparent 70%),
-    radial-gradient(280px 280px at 92% 88%, #f36a2028, transparent 70%);
+    radial-gradient(circle, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    radial-gradient(340px 340px at 8% 10%, #f36a2022, transparent 70%),
+    radial-gradient(300px 300px at 95% 20%, #5b7cf018, transparent 70%),
+    radial-gradient(320px 320px at 15% 92%, #a855f718, transparent 70%),
+    radial-gradient(280px 280px at 92% 88%, #f36a2016, transparent 70%);
   background-size: 6px 6px, auto, auto, auto, auto;
   /* Slow hue-rotate "breathing" — the whole mesh's colors drift through a
      narrow range over a long cycle, cheap (GPU filter, no layout/paint
@@ -465,41 +465,121 @@ body {
   color: var(--accent);
 }
 
-/* Draggable RoboCap floater — opens the chat overlay on tap, repositions
-   anywhere within .chat-app on drag (see initRobocapFloater in app.js). */
-.robocap-floater {
+/* RoboCap banner — permanent entry point into the chat, pinned above the
+   category list on the Menu tab (replaces the old draggable floater). Dark
+   gradient + drifting mesh blobs deliberately break from the surrounding
+   light/cream Menu tab so it reads as "AI", the same technique used for the
+   chat window's own ambient background (see #view-chat::before). */
+.robocap-banner {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  padding: 16px 16px 14px;
+  margin-bottom: 18px;
+  background: radial-gradient(120% 140% at 15% 0%, #2a2130 0%, #16131c 45%, #0e0d12 100%);
+  border: 1px solid rgba(243, 106, 32, 0.25);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.robocap-banner:focus-visible {
+  outline: 2px solid #f36a20;
+  outline-offset: 2px;
+}
+
+.robocap-banner-mesh {
   position: absolute;
-  right: 16px;
-  top: 120px;
-  width: 76px;
-  height: 76px;
-  border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.35);
-  background: linear-gradient(145deg, #4577d1, #244c8a);
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(90px 90px at 88% 10%, rgba(243, 106, 32, 0.45) 0%, transparent 70%),
+    radial-gradient(120px 120px at 100% 90%, rgba(111, 91, 219, 0.35) 0%, transparent 70%),
+    radial-gradient(circle, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: auto, auto, 6px 6px;
+  animation: robocap-banner-breathe 7s ease-in-out infinite;
+}
+
+@keyframes robocap-banner-breathe {
+  0%, 100% { filter: hue-rotate(0deg) brightness(1); }
+  50% { filter: hue-rotate(14deg) brightness(1.12); }
+}
+
+.robocap-banner-top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.robocap-banner-mark {
+  flex-shrink: 0;
+  display: flex;
+  filter: drop-shadow(0 4px 10px rgba(243, 106, 32, 0.4));
+}
+
+.robocap-banner-title {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   gap: 2px;
-  cursor: grab;
-  box-shadow: 0 8px 22px rgba(36, 76, 138, 0.45), 0 2px 6px rgba(0, 0, 0, 0.2);
-  touch-action: none;
-  z-index: 22;
-  /* Only the position animates (the snap-to-edge on release) — dragging
-     itself stays instant, see .dragging below. */
-  transition: left 0.25s ease, right 0.25s ease, top 0.15s ease;
+  min-width: 0;
 }
 
-.robocap-floater-label {
-  color: #fff;
+.robocap-banner-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #f7f7f8;
+}
+
+.robocap-banner-badge {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
+  color: #ff9257;
+  background: rgba(243, 106, 32, 0.18);
+  border: 1px solid rgba(243, 106, 32, 0.4);
+  border-radius: 999px;
+  padding: 2px 8px;
 }
 
-.robocap-floater.dragging {
-  cursor: grabbing;
-  transition: none;
+.robocap-banner-role {
+  font-size: 12px;
+  color: #b9bbc0;
+}
+
+.robocap-banner-tagline {
+  position: relative;
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #d6d7db;
+}
+
+.robocap-banner-quick {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.robocap-banner-quick-chip {
+  border: 1px solid rgba(243, 106, 32, 0.4);
+  background: rgba(243, 106, 32, 0.1);
+  color: #ff9257;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.robocap-banner-quick-chip:hover {
+  background: rgba(243, 106, 32, 0.2);
 }
 
 .overlay-icon-button {
