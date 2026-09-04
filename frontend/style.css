@@ -1236,7 +1236,12 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px;
+  /* Extra clearance on the trailing edges via env(safe-area-inset-*) — on
+     Android/iOS devices with a curved-edge display or a gesture-nav home
+     indicator, a control flush against the plain 12px padding can end up
+     visually clipped by the screen's own rounded corner/inset. The 0px
+     fallback keeps this identical to a plain 12px on devices without one. */
+  padding: 12px calc(12px + env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) calc(12px + env(safe-area-inset-left, 0px));
   background: var(--chat-bg);
   border-top: 1px solid var(--border);
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
