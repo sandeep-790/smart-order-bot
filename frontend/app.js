@@ -16,7 +16,7 @@ const SESSION_STORAGE_KEY = "cafebotSessionId";
 // Static, always-available conversation starters — not AI-generated.
 // Trimmed to the 8 most frequently useful questions (dropped the
 // lower-signal/overlapping ones: "full meal", "chef's picks" — redundant
-// with "recommend something" — and the ₹500 price filter, since ₹200
+// with "Recommends" — and the ₹500 price filter, since ₹200
 // already covers the common budget question).
 // Order matters: flex-wrap packs greedily in this exact array order (fills
 // the current row, wraps only when the next chip doesn't fit — never
@@ -25,9 +25,9 @@ const SESSION_STORAGE_KEY = "cafebotSessionId";
 // 4 two-chip rows at a 375px mobile viewport with the container's real
 // right-aligned layout (see .chat-reply-options--welcome).
 const WELCOME_QUICK_REPLIES = [
-  "👨‍🍳 recommend something",
+  "👨‍🍳 Recommends",
   "🥗 Veg options",
-  "🔥 What's special today?",
+  "🔥 Today's special",
   "🌶️ spicy dishes",
   "⭐ Show bestsellers",
   "💰 items under ₹200",
@@ -445,7 +445,7 @@ function getReplyOptionFlavor(value) {
 // labels already carry their own emoji prefix — adding the usual SVG icon
 // on top of that would double up.
 // Welcome starters carry their own leading emoji baked into the label text
-// (e.g. "🧑‍🍳 recommend something") rather than an SVG icon — split it off
+// (e.g. "🧑‍🍳 Recommends") rather than an SVG icon — split it off
 // so it can render in its own colored icon box like every other chip,
 // instead of sitting inline with the text.
 function splitLeadingEmoji(value) {

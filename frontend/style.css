@@ -82,12 +82,12 @@
   z-index: -1;
   pointer-events: none;
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-    radial-gradient(340px 340px at 8% 10%, #f36a2073, transparent 70%),
-    radial-gradient(300px 300px at 95% 20%, #5b7cf05e, transparent 70%),
-    radial-gradient(320px 320px at 15% 92%, #a855f75e, transparent 70%),
-    radial-gradient(280px 280px at 92% 88%, #f36a2050, transparent 70%);
-  background-size: 20px 20px, auto, auto, auto, auto;
+    radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    radial-gradient(340px 340px at 8% 10%, #f36a2040, transparent 70%),
+    radial-gradient(300px 300px at 95% 20%, #5b7cf030, transparent 70%),
+    radial-gradient(320px 320px at 15% 92%, #a855f730, transparent 70%),
+    radial-gradient(280px 280px at 92% 88%, #f36a2028, transparent 70%);
+  background-size: 6px 6px, auto, auto, auto, auto;
   /* Slow hue-rotate "breathing" — the whole mesh's colors drift through a
      narrow range over a long cycle, cheap (GPU filter, no layout/paint
      thrash) and reads as a living gradient rather than four static blobs. */
@@ -637,11 +637,11 @@ body {
     filter: blur(6px) saturate(0%);
   }
   55% {
-    opacity: 1;
+    opacity: 0.75;
     filter: blur(0) saturate(130%);
   }
   100% {
-    opacity: 1;
+    opacity: 0.75;
     transform: scale(1);
     filter: blur(0) saturate(100%);
   }
@@ -1037,6 +1037,10 @@ body {
 .message-row.bot {
   flex-direction: column;
   align-items: flex-start;
+  /* Overrides .message-row's row gap (8px, meant for the avatar/bubble
+     spacing in a horizontal row) — stacked vertically here, that gap plus
+     .bot-name-label's own margin made the name-to-bubble gap too tall. */
+  gap: 2px;
 }
 
 .message-row.user {
@@ -1045,7 +1049,7 @@ body {
 
 .bot-name-label {
   display: block;
-  margin: 0 0 4px 2px;
+  margin: 0 0 2px 2px;
   font-size: 12px;
   font-weight: 700;
   color: var(--accent);
