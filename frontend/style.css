@@ -10,6 +10,14 @@
   --border: #dbe4ee;
   --radius: 16px;
 
+  /* Shared fill for solid CTA buttons (Add, Place order, Save, etc.) — a
+     lighter-to-darker diagonal sweep of --accent instead of a flat color,
+     so every filled button reads as one consistent gradient style. Built
+     from --accent itself (via color-mix) rather than hardcoded colors, so
+     it automatically follows whichever --accent is active — the light
+     theme's blue here, the chat window's orange under #view-chat. */
+  --accent-gradient: linear-gradient(135deg, color-mix(in srgb, var(--accent) 100%, white 15%) 0%, var(--accent) 55%, color-mix(in srgb, var(--accent) 100%, black 20%) 100%);
+
   /* Multi-color "flavor" accents for quick-reply chips — reuses the same
      hex pairs as the item badges below so the two systems read as one
      continuous palette. */
@@ -42,6 +50,13 @@
   --chat-bg: #08090b;
   --surface: #131519;
   --accent: #f36a20;
+  /* Custom properties resolve var() against the cascade at the element that
+     DECLARES them, not at each element that inherits them — so leaving
+     --accent-gradient's :root declaration alone would bake in the root's
+     blue --accent, even though every element under here already sees this
+     orange --accent. Redeclaring it here re-resolves it against this
+     block's own --accent instead. */
+  --accent-gradient: linear-gradient(135deg, color-mix(in srgb, var(--accent) 100%, white 15%) 0%, var(--accent) 55%, color-mix(in srgb, var(--accent) 100%, black 20%) 100%);
   --user-bubble: #000000;
   --user-bubble-text: #f7f7f8;
   --user-bubble-border: #f36a2066;
@@ -75,6 +90,11 @@
    every blob stays low-opacity/soft-edged so transcript text on top
    never loses contrast. inset is negative so the drift never reveals a
    hard edge at the boundary. */
+/* Background stays the plain dark --chat-bg (see #view-chat) — the color
+   only shows up inside the dot grid itself: the same four-corner blob
+   colors as before, but used as a mask source so they're clipped down to
+   just the dots (mask-size repeats the dot circle like background-size did
+   for the old white dot layer). Everywhere between dots stays flat black. */
 #view-chat::before {
   content: "";
   position: absolute;
@@ -82,12 +102,14 @@
   z-index: -1;
   pointer-events: none;
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    radial-gradient(340px 340px at 8% 10%, #f36a2022, transparent 70%),
-    radial-gradient(300px 300px at 95% 20%, #5b7cf018, transparent 70%),
-    radial-gradient(320px 320px at 15% 92%, #a855f718, transparent 70%),
-    radial-gradient(280px 280px at 92% 88%, #f36a2016, transparent 70%);
-  background-size: 6px 6px, auto, auto, auto, auto;
+    radial-gradient(340px 340px at 8% 10%, #b3500f4a 0%, #b3500f18 40%, transparent 70%),
+    radial-gradient(300px 300px at 95% 20%, #3d54a84a 0%, #3d54a818 40%, transparent 70%),
+    radial-gradient(320px 320px at 15% 92%, #7530b04a 0%, #7530b018 40%, transparent 70%),
+    radial-gradient(280px 280px at 92% 88%, #b3500f4a 0%, #b3500f18 40%, transparent 70%);
+  -webkit-mask-image: radial-gradient(circle, #fff 1.5px, transparent 1.5px);
+  -webkit-mask-size: 5px 5px;
+  mask-image: radial-gradient(circle, #fff 1.5px, transparent 1.5px);
+  mask-size: 5px 5px;
   /* Slow hue-rotate "breathing" — the whole mesh's colors drift through a
      narrow range over a long cycle, cheap (GPU filter, no layout/paint
      thrash) and reads as a living gradient rather than four static blobs. */
@@ -96,13 +118,13 @@
 
 @keyframes chat-mesh-breathe {
   0% {
-    filter: hue-rotate(0deg) brightness(1);
+    filter: hue-rotate(0deg) brightness(0.75);
   }
   50% {
-    filter: hue-rotate(18deg) brightness(1.08);
+    filter: hue-rotate(18deg) brightness(0.8);
   }
   100% {
-    filter: hue-rotate(-10deg) brightness(0.96);
+    filter: hue-rotate(-10deg) brightness(0.7);
   }
 }
 
@@ -229,7 +251,7 @@ body {
 }
 
 .chat-ai-disclaimer-logo {
-  height: 9px;
+  height: 7px;
   width: auto;
   display: block;
 }
@@ -399,7 +421,7 @@ body {
   padding: 12px 22px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   font-size: 14px;
   font-weight: 600;
@@ -717,11 +739,11 @@ body {
     filter: blur(6px) saturate(0%);
   }
   55% {
-    opacity: 0.75;
+    opacity: 0.3;
     filter: blur(0) saturate(130%);
   }
   100% {
-    opacity: 0.75;
+    opacity: 0.3;
     transform: scale(1);
     filter: blur(0) saturate(100%);
   }
@@ -1072,7 +1094,7 @@ body {
   padding: 13px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   font-size: 15px;
   font-weight: 700;
@@ -1134,6 +1156,11 @@ body {
   font-weight: 700;
   color: var(--accent);
   letter-spacing: 0.01em;
+}
+
+.bot-name-icon {
+  vertical-align: -1px;
+  margin-right: 1px;
 }
 
 /* Wraps the bubble and its meta row (time + mute toggle) so the meta sits
@@ -1713,7 +1740,7 @@ body {
   padding: 7px 16px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
@@ -1891,7 +1918,7 @@ body {
   box-shadow: none;
 }
 .chat-reply-option--primary:hover {
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
 }
 
@@ -2055,7 +2082,7 @@ body {
   padding: 12px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   font-size: 14px;
   font-weight: 700;
@@ -2141,7 +2168,7 @@ body {
   padding: 12px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   font-size: 14px;
   font-weight: 700;
@@ -2415,7 +2442,7 @@ body {
   padding: 12px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   font-size: 14px;
   font-weight: 700;
@@ -2551,7 +2578,7 @@ body {
   padding: 7px 14px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   font-size: 13px;
   cursor: pointer;
@@ -2636,7 +2663,7 @@ body {
   padding: 10px 16px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   font-size: 13px;
   cursor: pointer;
@@ -2719,7 +2746,7 @@ body {
   padding: 6px 12px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   font-size: 12px;
   cursor: pointer;
@@ -2777,7 +2804,7 @@ body {
 }
 
 .fulfillment-option.active {
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   border-color: var(--accent);
 }
@@ -2801,7 +2828,7 @@ body {
   padding: 10px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   font-size: 14px;
   cursor: pointer;
@@ -2831,7 +2858,7 @@ body {
   padding: 8px 16px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   font-size: 13px;
   cursor: pointer;
@@ -2852,7 +2879,7 @@ body {
 }
 
 #reviewButton:hover {
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
 }
 
@@ -2909,7 +2936,7 @@ body {
   padding: 14px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   font-size: 15px;
   font-weight: 600;
@@ -2997,7 +3024,7 @@ body {
   padding: 8px 16px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   font-size: 13px;
   cursor: pointer;

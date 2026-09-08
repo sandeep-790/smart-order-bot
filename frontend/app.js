@@ -249,7 +249,11 @@ function appendMessage(sender, text, options = {}) {
   if (sender === "bot") {
     const nameLabel = document.createElement("span");
     nameLabel.className = "bot-name-label";
-    nameLabel.textContent = "✦ RoboCap";
+    // Outlined sparkle (stroke only, no fill) rather than the solid Unicode
+    // "✦" glyph — matches the outlined-icon language used elsewhere in the
+    // redesign (reply chips, item badges) instead of a filled dingbat.
+    nameLabel.innerHTML =
+      '<svg class="bot-name-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 2c0 0 0.8 6.5 3 8.5c2.2 2 7 1.5 7 1.5c0 0-4.8 -0.5 -7 1.5c-2.2 2 -3 8.5 -3 8.5c0 0 -0.8 -6.5 -3 -8.5c-2.2 -2 -7 -1.5 -7 -1.5c0 0 4.8 0.5 7 -1.5c2.2 -2 3 -8.5 3 -8.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> RoboCap';
     row.appendChild(nameLabel);
   }
 
