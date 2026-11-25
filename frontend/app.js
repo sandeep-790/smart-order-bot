@@ -781,6 +781,16 @@ function matchFulfillmentType(value) {
 // Field sets per fulfillment type — matches exactly what the backend's own
 // pickup/dine-in/delivery routes accept (see server.js), so the composed
 // message below never asks for something the AI can't actually use.
+const DETAILS_ICONS = {
+  user: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 20c.9-3.6 4-5.5 7.5-5.5s6.6 1.9 7.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  name: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 20c.9-3.6 4-5.5 7.5-5.5s6.6 1.9 7.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  phone: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6.5 3.5h3l1.3 4-2 1.3a11 11 0 0 0 5.4 5.4l1.3-2 4 1.3v3a2 2 0 0 1-2.2 2A15.5 15.5 0 0 1 4.5 5.7a2 2 0 0 1 2-2.2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+  address: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M12 21s6.5-5.6 6.5-11a6.5 6.5 0 0 0-13 0c0 5.4 6.5 11 6.5 11Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.2" stroke="currentColor" stroke-width="1.8"/></svg>',
+  pickupTime: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5" stroke="currentColor" stroke-width="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+
 const DETAILS_FORM_FIELDS = {
   pickup: [
     { key: "name", label: "Your name", type: "text", required: true },
@@ -829,17 +839,21 @@ function appendDetailsForm(fulfillmentType) {
   wrap.className = "chat-details-form";
 
   wrap.innerHTML =
-    '<div class="chat-details-form-header">Your details</div>' +
+    '<div class="chat-details-form-header">' +
+    `<span class="chat-details-form-badge">${DETAILS_ICONS.user}</span>` +
+    '<div class="chat-details-form-heading"><strong>Your details</strong><small>So the kitchen knows who it\'s for</small></div>' +
+    "</div>" +
     fields
       .map(
         (f) =>
           `<label class="chat-details-form-field"><span>${escapeHtml(f.label)}</span>` +
-          `<input type="${f.type}" data-field="${f.key}" ${f.required ? "required" : ""} /></label>`
+          `<div class="chat-details-form-control">${DETAILS_ICONS[f.key] || ""}` +
+          `<input type="${f.type}" data-field="${f.key}" ${f.required ? "required" : ""} /></div></label>`
       )
       .join("") +
-    '<p class="chat-details-form-lock">🔒 Only used for this order.</p>' +
+    `<p class="chat-details-form-lock">${DETAILS_ICONS.lock}Only used for this order</p>` +
     '<div class="chat-details-form-actions">' +
-    '<button type="button" class="chat-details-form-save">Save and continue</button>' +
+    `<button type="button" class="chat-details-form-save"><span>Save and continue</span>${DETAILS_ICONS.arrow}</button>` +
     '<button type="button" class="chat-details-form-later">I\'ll type it instead</button>' +
     "</div>";
 
@@ -920,7 +934,7 @@ async function renderCartSummaryBlock(block, { showActions = true } = {}) {
               <div class="review-item-detail-lines">
                 ${item.size ? `<span class="review-item-detail">${escapeHtml(item.size)}</span>` : ""}
                 ${addOnNames ? `<span class="review-item-detail">${escapeHtml(addOnNames)}</span>` : ""}
-                <button type="button" class="review-item-change" data-action="change">Change</button>
+                <button type="button" class="review-item-change" data-action="change"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" aria-hidden="true"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-4-4L4 16v4Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>Change</button>
               </div>
               <span class="review-item-price">${formatMoney(item.lineTotal)}</span>
             </div>
@@ -930,10 +944,13 @@ async function renderCartSummaryBlock(block, { showActions = true } = {}) {
       .join("");
 
     block.innerHTML = `
-      <div class="chat-cart-summary-icon"><span>${REPLY_ICON_CART}</span></div>
-      <div class="chat-cart-summary-header">
-        <span class="chat-cart-summary-label">Your order</span>
-        <span class="chat-cart-summary-count">${count} item${count === 1 ? "" : "s"}${fulfillmentLabel ? ` · ${fulfillmentLabel}` : ""}</span>
+      <div class="chat-cart-summary-head">
+        <div class="chat-cart-summary-icon"><span>${REPLY_ICON_CART}</span></div>
+        <div class="chat-cart-summary-header">
+          <span class="chat-cart-summary-label">Your order</span>
+          <span class="chat-cart-summary-count">${count} item${count === 1 ? "" : "s"}</span>
+        </div>
+        ${fulfillmentLabel ? `<span class="chat-cart-summary-fulfillment">${fulfillmentLabel}</span>` : ""}
       </div>
       <div class="review-items">${itemRows || '<p class="empty-state">No items yet.</p>'}</div>
       ${
@@ -944,8 +961,8 @@ async function renderCartSummaryBlock(block, { showActions = true } = {}) {
       ${
         review.items.length > 0 && showActions
           ? `<div class="chat-cart-summary-actions">
-              <button type="button" class="chat-cart-summary-more-btn">Add more</button>
-              <button type="button" class="chat-cart-summary-place-btn">Place order</button>
+              <button type="button" class="chat-cart-summary-more-btn"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Add more</button>
+              <button type="button" class="chat-cart-summary-place-btn">Place order<svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </div>`
           : ""
       }

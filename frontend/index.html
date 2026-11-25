@@ -149,18 +149,24 @@
       </main>
 
       <div class="order-locked-banner" id="orderLockedBanner" hidden>
-        <div class="order-locked-label">Order placed</div>
+        <div class="order-locked-label"><i></i>Order placed</div>
         <div class="order-locked-check" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 13l4 4 10-10" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path class="order-locked-tick" d="M5 13l4 4 10-10" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
         <p class="order-locked-title">You're all set</p>
         <p class="order-locked-subtitle" id="orderLockedSubtitle">Your order is on its way to the kitchen.</p>
         <div class="order-locked-stats" id="orderLockedStats"></div>
         <div class="order-locked-actions">
-          <button type="button" id="trackOrderButton" class="order-locked-track-btn">Track it</button>
-          <button type="button" id="startOverButton">Start a new order</button>
+          <button type="button" id="trackOrderButton" class="order-locked-track-btn">
+            <span>Track it</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button type="button" id="startOverButton">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5M20 12a8 8 0 0 1-14 5.3L4 15M4 20v-5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Start a new order</span>
+          </button>
         </div>
       </div>
 
