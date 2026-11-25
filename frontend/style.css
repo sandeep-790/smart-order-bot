@@ -5035,3 +5035,73 @@ button, input, textarea, select {
 @media (prefers-reduced-motion: reduce) {
   .bot-skeleton i { animation: none; }
 }
+
+/* Yes / No decision dock — the confirm pair (e.g. "Yes, confirm" / "No, let
+   me change something") sits in one glass bar as two big buttons: a filled
+   gradient yes and an outlined no, each with an icon. */
+.chat-reply-options--decision {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 10px;
+  padding: 10px;
+  border-radius: 28px;
+  background: linear-gradient(160deg, #1d1622 0%, #131519 62%);
+  box-shadow: 0 0 0 1px #ffffff14, 0 20px 40px -26px rgba(192, 89, 138, 0.6), inset 0 1px 0 #ffffff14;
+}
+
+.chat-reply-option--decision {
+  flex: 1;
+  justify-content: center;
+  height: 52px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  white-space: normal;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+  gap: 8px;
+  box-shadow: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.chat-reply-option--decision.chat-reply-option--confirm {
+  background: var(--accent-gradient);
+  color: #fff;
+  box-shadow: 0 12px 24px -12px rgba(192, 89, 138, 0.95);
+}
+
+.chat-reply-option--decision.chat-reply-option--confirm:hover {
+  background: var(--accent-gradient);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px -12px rgba(192, 89, 138, 1);
+}
+
+.chat-reply-option--decision.chat-reply-option--decline {
+  flex: 1.25;
+  background: transparent;
+  color: var(--text);
+  box-shadow: inset 0 0 0 1.5px #ffffff2e;
+}
+
+.chat-reply-option--decision.chat-reply-option--decline svg {
+  color: #f2add0;
+}
+
+.chat-reply-option--decision.chat-reply-option--decline:hover {
+  background: #ffffff0f;
+  transform: none;
+  box-shadow: inset 0 0 0 1.5px #ffffff4a;
+}
+
+.chat-reply-option--decision:active {
+  transform: scale(0.97);
+}
+
+.chat-reply-option--decision svg {
+  flex-shrink: 0;
+}

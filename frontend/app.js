@@ -598,6 +598,15 @@ const REPLY_ICON_CART =
 const REPLY_ICON_CHECKOUT =
   '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
   '<path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const REPLY_ICON_YES =
+  '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const REPLY_ICON_EDIT =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<path d="M4 20h4L19 9a2.1 2.1 0 0 0-4-4L4 16v4Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>';
+const REPLY_ICON_NO =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
 const REPLY_ICON_DEFAULT =
   '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
   '<path d="M4 5h16v10H8l-4 4V5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
@@ -610,11 +619,10 @@ const REPLY_CHIP_RULES = [
   [/pickup/i, REPLY_ICON_PICKUP, "blue"],
   [/delivery/i, REPLY_ICON_DELIVERY, "blue"],
   [/dine.?in/i, REPLY_ICON_DINEIN, "blue"],
-  // Yes/No confirmation chips use the same outlined-orange "primary" style
-  // as the Half/Full size pills — a plain binary choice, not a category
-  // with its own flavor color like fulfillment/spice-level chips.
-  [/^yes\b|confirm/i, null, "primary"],
-  [/^no\b|change something/i, null, "primary"],
+  // Yes/No confirmation are the "decision" pair: a filled gradient button
+  // for yes, an outlined one for no (see .chat-reply-option--decision).
+  [/^yes\b|confirm/i, REPLY_ICON_YES, "confirm"],
+  [/^no\b|change something/i, null, "decline"],
   [/mild|medium|spicy/i, REPLY_ICON_CHILI, "berry"],
   [/^\d+$/, REPLY_ICON_QUANTITY, "amber"],
   [/view cart/i, REPLY_ICON_CART, "blue"],
@@ -623,6 +631,7 @@ const REPLY_CHIP_RULES = [
 
 function getReplyOptionIcon(value) {
   const rule = REPLY_CHIP_RULES.find(([pattern]) => pattern.test(value));
+  if (rule && rule[2] === "decline") return /change/i.test(value) ? REPLY_ICON_EDIT : REPLY_ICON_NO;
   return rule ? rule[1] : REPLY_ICON_DEFAULT;
 }
 
@@ -661,6 +670,10 @@ function appendReplyOptions(options, { skipIcon = false } = {}) {
   // right-aligned like a user bubble instead of sitting under RoboCap's
   // own reply — skipIcon is unique to that context today.
   wrap.className = skipIcon ? "chat-reply-options chat-reply-options--welcome" : "chat-reply-options";
+  // A yes/no pair becomes one glass "decision" dock with two big buttons.
+  if (!skipIcon && options.some((o) => getReplyOptionFlavor(o) === "confirm") && options.some((o) => getReplyOptionFlavor(o) === "decline")) {
+    wrap.classList.add("chat-reply-options--decision");
+  }
   options.forEach((value, index) => {
     const chip = document.createElement("button");
     chip.type = "button";
@@ -679,6 +692,9 @@ function appendReplyOptions(options, { skipIcon = false } = {}) {
       if (flavor === "primary") {
         chip.className = "chat-reply-option chat-reply-option--primary";
         chip.innerHTML = `<span>${value}</span>`;
+      } else if (flavor === "confirm" || flavor === "decline") {
+        chip.className = `chat-reply-option chat-reply-option--decision chat-reply-option--${flavor}`;
+        chip.innerHTML = `${getReplyOptionIcon(value)}<span>${value}</span>`;
       } else {
         chip.className = "chat-reply-option";
         chip.innerHTML =
