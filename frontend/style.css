@@ -2819,38 +2819,61 @@ body {
   color: #fff;
 }
 
-/* In-chat cart summary (View Cart chip / composer cart icon) — a floating
-   icon badge poking above the card, item rows with a Type/Extras/Change
-   layout, an optional order-level note, and Add more/Place order actions.
-   No price breakdown (subtotal/tax/total) by design — this card is a
-   review of *what's in the order*, not its pricing; the AI's own
-   confirm-order step states the final total conversationally. Scoped
-   under .chat-cart-summary so the read-only Checkout view's own
-   .review-item-* rows (a different structure) are unaffected. */
-.chat-cart-summary {
+/* In-chat cart summary (View Cart chip / composer cart icon / final review) —
+   a glass card: icon tile + title + fulfilment pill on top, one tile per
+   line (name, gradient stepper, variant pills, Change, price), then Add
+   more / Place order. No price breakdown (subtotal/tax/total) by design —
+   this card is a review of *what's in the order*; the AI's confirm step
+   states the final total. Scoped under .chat-cart-summary so the read-only
+   Checkout view's own .review-item-* rows are unaffected. */
+.chat-cart-summary,
+.chat-details-form {
   position: relative;
-  margin: 22px 0 10px 0;
-  max-width: 92%;
-  padding: 26px 14px 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  overflow: hidden;
+  /* .chat-area is a flex column — without this, overflow:hidden lets the
+     card shrink below its content when the transcript is long. */
+  flex-shrink: 0;
+  isolation: isolate;
+  background: linear-gradient(160deg, #1d1622 0%, #131519 58%);
+  border-radius: 24px;
+  box-shadow: 0 0 0 1px #ffffff14, 0 22px 44px -26px rgba(192, 89, 138, 0.55), inset 0 1px 0 #ffffff14;
+}
+
+/* Soft rose glow bleeding in from the top-left corner. */
+.chat-cart-summary::before,
+.chat-details-form::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(90% 60% at 0% 0%, #c0598a2e 0%, transparent 62%);
+}
+
+.chat-cart-summary {
+  margin: 4px 0 10px 0;
+  max-width: 94%;
+  padding: 16px 14px 14px;
+}
+
+.chat-cart-summary-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
 .chat-cart-summary-icon {
-  position: absolute;
-  top: -22px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  background: var(--accent);
+  border-radius: 14px;
+  background: var(--accent-gradient);
   color: #fff;
-  box-shadow: 0 4px 14px rgba(192, 89, 138, 0.35);
+  box-shadow: 0 8px 18px -6px rgba(192, 89, 138, 0.7);
 }
 
 .chat-cart-summary-icon svg {
@@ -2859,37 +2882,52 @@ body {
 }
 
 .chat-cart-summary-header {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 2px;
-  margin-bottom: 14px;
-  text-align: center;
+  text-align: left;
 }
 
 .chat-cart-summary-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 
 .chat-cart-summary-count {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-muted);
+}
+
+.chat-cart-summary-fulfillment {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #c0598a22;
+  box-shadow: inset 0 0 0 1px #c0598a55;
+  color: #f2add0;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .chat-cart-summary .review-item-row {
   flex-direction: column;
   align-items: stretch;
-  gap: 4px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 12px;
+  border-radius: 18px;
+  background: #ffffff08;
+  box-shadow: inset 0 0 0 1px #ffffff0d;
 }
 
 .chat-cart-summary .review-item-row:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .review-item-top {
@@ -2900,53 +2938,103 @@ body {
 }
 
 .chat-cart-summary .review-item-name {
-  font-weight: 700;
-  font-size: 14px;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.01em;
   color: var(--text);
+}
+
+/* Stepper: one gradient pill (− n +), same family as the Menu / Cart steppers. */
+.chat-cart-summary .chat-item-qty-stepper {
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--accent-gradient);
+  flex-shrink: 0;
+}
+
+.chat-cart-summary .chat-item-qty-stepper button {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: #ffffff24;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.chat-cart-summary .chat-item-qty-stepper button:hover {
+  background: #ffffff3d;
+}
+
+.chat-cart-summary .chat-item-qty-stepper button:active {
+  transform: scale(0.88);
+}
+
+.chat-cart-summary .chat-item-qty-stepper span {
+  min-width: 24px;
+  color: #fff;
+  font-weight: 800;
 }
 
 .review-item-detail-rows {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
 .review-item-detail-lines {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 .chat-cart-summary .review-item-detail {
-  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #ffffff12;
+  font-size: 11.5px;
+  font-weight: 600;
   color: var(--text-muted);
 }
 
 .review-item-change {
-  margin-top: 2px;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
   border: none;
-  background: none;
-  color: var(--accent);
-  font-size: 12px;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px #c0598a66;
+  color: #f2add0;
+  font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.review-item-change:hover {
+  background: #c0598a22;
 }
 
 .chat-cart-summary .review-item-price {
   flex-shrink: 0;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
   color: var(--text);
 }
 
 .chat-cart-summary-note {
   margin-top: 10px;
   padding: 12px;
-  border: 1px dashed var(--border);
-  border-radius: 12px;
+  border: 1px dashed #ffffff2b;
+  border-radius: 14px;
   font-size: 13px;
   color: var(--text);
   line-height: 1.4;
@@ -2959,36 +3047,50 @@ body {
 .chat-cart-summary-actions {
   display: flex;
   gap: 10px;
-  margin-top: 16px;
+  margin-top: 14px;
+}
+
+.chat-cart-summary-more-btn,
+.chat-cart-summary-place-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 48px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .chat-cart-summary-more-btn {
-  flex: 1;
-  padding: 12px;
-  border: 1.5px solid var(--accent);
-  border-radius: 999px;
+  border: none;
   background: transparent;
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
+  box-shadow: inset 0 0 0 1.5px #c0598a88;
+  color: #f2add0;
+}
+
+.chat-cart-summary-more-btn:hover {
+  background: #c0598a1c;
 }
 
 .chat-cart-summary-place-btn {
-  flex: 1;
-  padding: 12px;
   border: none;
-  border-radius: 999px;
   background: var(--accent-gradient);
   color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
+  box-shadow: 0 12px 24px -12px rgba(192, 89, 138, 0.9);
 }
 
-.chat-cart-summary-more-btn:hover,
 .chat-cart-summary-place-btn:hover {
-  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+.chat-cart-summary-place-btn:active,
+.chat-cart-summary-more-btn:active {
+  transform: scale(0.97);
 }
 
 /* "Your details" card (Figma's structured name/phone/etc. capture) —
@@ -2996,94 +3098,162 @@ body {
    those details besides just typing them conversationally. Submitting
    composes a normal chat message from the fields and sends it through the
    exact same pipeline as typed text (see appendDetailsForm in app.js) —
-   this is a frontend-only affordance, not a new API. */
+   this is a frontend-only affordance, not a new API. Shares the glass-card
+   surface with .chat-cart-summary (declared above). */
 .chat-details-form {
   margin: 0 0 10px 0;
-  max-width: 92%;
-  padding: 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  max-width: 94%;
+  padding: 16px 14px 14px;
 }
 
 .chat-details-form-header {
-  margin: 0 0 10px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+}
+
+.chat-details-form-badge {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: var(--accent-gradient);
+  color: #fff;
+  box-shadow: 0 8px 18px -6px rgba(192, 89, 138, 0.7);
+}
+
+.chat-details-form-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chat-details-form-heading strong {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.chat-details-form-heading small {
+  font-size: 12px;
   color: var(--text-muted);
 }
 
 .chat-details-form-field {
   display: block;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
-.chat-details-form-field span {
+.chat-details-form-field > span {
   display: block;
-  margin-bottom: 4px;
+  margin: 0 0 6px 4px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   color: var(--text-muted);
 }
 
+.chat-details-form-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: #0a0a0d;
+  box-shadow: inset 0 0 0 1px #ffffff14;
+  color: var(--text-muted);
+  transition: box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.chat-details-form-control:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 0 4px #c0598a29;
+  color: #f2add0;
+}
+
+.chat-details-form-control svg {
+  flex-shrink: 0;
+}
+
 .chat-details-form-field input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--chat-bg);
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
   color: var(--text);
-  font-size: 14px;
+  font-size: 15px;
   font-family: inherit;
   outline: none;
 }
 
-.chat-details-form-field input:focus {
-  border-color: var(--accent);
-}
-
 .chat-details-form-lock {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin: 4px 0 12px;
-  font-size: 11px;
-  color: var(--text-muted);
+  margin: 2px 0 14px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: #4fc17c14;
+  box-shadow: inset 0 0 0 1px #4fc17c33;
+  color: #86d9a6;
+  font-size: 11.5px;
+  font-weight: 600;
 }
 
 .chat-details-form-actions {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .chat-details-form-save {
   width: 100%;
-  padding: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 50px;
+  padding: 0 12px;
   border: none;
   border-radius: 999px;
   background: var(--accent-gradient);
   color: #fff;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 800;
   cursor: pointer;
+  box-shadow: 0 12px 24px -12px rgba(192, 89, 138, 0.9);
+  transition: transform 0.15s ease;
 }
 
 .chat-details-form-save:hover {
-  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+.chat-details-form-save:active {
+  transform: scale(0.98);
 }
 
 .chat-details-form-later {
-  padding: 4px;
+  padding: 8px;
   border: none;
   background: none;
   color: var(--text-muted);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+}
+
+.chat-details-form-later:hover {
+  color: var(--text);
 }
 
 .chat-details-form.chat-details-form--done {
@@ -3243,63 +3413,121 @@ body {
   color: var(--accent);
 }
 
-/* Order placed banner — matches the Figma "ORDER PLACED / You're all set"
-   card: overline label, green check circle, title/subtitle, a real-data
-   stat row (order # + total — only what the order object actually has, no
-   fabricated ETA), then Track it / Start a new order. */
+/* Order placed — a celebratory glass card: "Order placed" chip, a green
+   check that pops in with a drawn tick and soft ripples, title/subtitle, a
+   ticket-style stat strip (order # | to pay — only what the order object
+   actually has, no fabricated ETA), then Track it / Start a new order. */
 .order-locked-banner {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 4px;
   margin: 0 16px 12px;
-  padding: 20px 16px 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  padding: 20px 18px 18px;
+  background:
+    radial-gradient(120% 70% at 50% 0%, #4fc17c2b 0%, transparent 62%),
+    linear-gradient(170deg, #1d1622 0%, #131519 60%);
+  border-radius: 28px;
+  box-shadow: 0 0 0 1px #ffffff14, 0 26px 50px -26px rgba(79, 193, 124, 0.45), inset 0 1px 0 #ffffff14;
   flex-shrink: 0;
 }
 
 .order-locked-label {
-  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 26px;
+  padding: 5px 13px;
+  border-radius: 999px;
+  background: #4fc17c1c;
+  box-shadow: inset 0 0 0 1px #4fc17c44;
+  color: #86d9a6;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  margin-bottom: 10px;
+  letter-spacing: 0.1em;
+}
+
+.order-locked-label i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4fc17c;
+  animation: header-dot 2s ease-out infinite;
 }
 
 .order-locked-check {
-  width: 48px;
-  height: 48px;
+  position: relative;
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
-  background: var(--status-veg);
+  background: linear-gradient(145deg, #86d9a6 0%, #3fae6b 100%);
+  box-shadow: 0 14px 30px -10px rgba(63, 174, 107, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 4px;
+  animation: check-pop 0.55s cubic-bezier(0.3, 1.6, 0.4, 1) both;
+}
+
+.order-locked-check::before,
+.order-locked-check::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid #4fc17c99;
+  animation: check-ripple 2.2s ease-out infinite;
+}
+
+.order-locked-check::after {
+  animation-delay: 1.1s;
+}
+
+.order-locked-tick {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: tick-draw 0.5s 0.25s ease forwards;
+}
+
+@keyframes check-pop {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+@keyframes check-ripple {
+  from { transform: scale(1); opacity: 0.8; }
+  to   { transform: scale(1.55); opacity: 0; }
+}
+
+@keyframes tick-draw {
+  to { stroke-dashoffset: 0; }
 }
 
 .order-locked-title {
-  margin: 4px 0 0;
-  font-size: 16px;
-  font-weight: 700;
+  margin: 22px 0 0;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
   color: var(--text);
 }
 
 .order-locked-subtitle {
-  margin: 2px 0 0;
-  font-size: 13px;
+  margin: 5px 0 0;
+  font-size: 13.5px;
   color: var(--text-muted);
 }
 
 .order-locked-stats {
   display: flex;
-  gap: 8px;
   width: 100%;
-  margin-top: 14px;
+  margin-top: 18px;
+  border-radius: 18px;
+  background: #0a0a0d;
+  box-shadow: inset 0 0 0 1px #ffffff12;
+  overflow: hidden;
 }
 
 .order-locked-stats:empty {
@@ -3308,52 +3536,116 @@ body {
 
 .order-locked-stat {
   flex: 1;
-  padding: 8px;
-  border-radius: 10px;
-  background: var(--chat-bg);
+  padding: 12px 8px 13px;
+  text-align: center;
+}
+
+.order-locked-stat + .order-locked-stat {
+  border-left: 2px dashed #ffffff24;
 }
 
 .order-locked-stat-label {
   display: block;
-  font-size: 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
   color: var(--text-muted);
 }
 
 .order-locked-stat-value {
   display: block;
-  margin-top: 2px;
-  font-size: 13px;
-  font-weight: 700;
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
   color: var(--text);
+}
+
+/* The amount gets the brand gradient. */
+.order-locked-stat:last-child .order-locked-stat-value {
+  background: linear-gradient(90deg, #f8c4dd, #c0598a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .order-locked-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  margin-top: 14px;
+  margin-top: 18px;
 }
 
 .order-locked-track-btn {
-  padding: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 14px;
   border: none;
   border-radius: 999px;
   background: var(--accent-gradient);
   color: #fff;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 800;
   cursor: pointer;
+  box-shadow: 0 14px 28px -14px rgba(192, 89, 138, 0.95);
+  transition: transform 0.15s ease;
+}
+
+.order-locked-track-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.order-locked-track-btn:hover svg {
+  transform: translateX(3px);
+}
+
+.order-locked-track-btn:active {
+  transform: scale(0.98);
 }
 
 #startOverButton {
-  padding: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 14px;
   border: none;
-  background: none;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 600;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px #ffffff24;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 700;
   cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+#startOverButton:hover {
+  background: #ffffff0d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .order-locked-check,
+  .order-locked-check::before,
+  .order-locked-check::after,
+  .order-locked-label i {
+    animation: none;
+  }
+  .order-locked-check::before,
+  .order-locked-check::after {
+    display: none;
+  }
+  .order-locked-tick {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
 }
 
 /* Scrollbar (webkit) */
