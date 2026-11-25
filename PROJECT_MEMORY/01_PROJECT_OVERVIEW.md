@@ -30,7 +30,7 @@ Stated product goals (Recovered from user requests):
 - Deterministic pricing: subtotal − promotion discount + 8% tax + ₹40 delivery fee (delivery only).
 - Promotions engine with time windows, required items, minimum order, customer type.
 - RoboCap: 24 AI tools, structured UI payloads (item cards, comparison "Best for"/recommendation, order summary card, quick replies), first-add **pairing suggestion**, typing indicators, skeleton loaders.
-- Voice: speech-to-text (browser Web Speech API, `en-IN`, 2-second auto-send with loader on the Send button) and text-to-speech (Sarvam Bulbul, streamed MP3), per-message mute.
+- Voice: speech-to-text (browser Web Speech API, `en-IN`, tap mic → listening effect → Stop → transcript stays in the box → Send; no auto-send (D37)) and text-to-speech (Sarvam Bulbul, streamed MP3), per-message mute.
 - Item customization bottom sheet; "Add more" on order summary requests 2 recommended items excluding cart items; "Change" opens the sheet in edit mode.
 - Post-order lockdown of the chat (previous interactive elements disabled; "Start over").
 - Staff dashboard with Basic Auth.

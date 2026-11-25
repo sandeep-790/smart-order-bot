@@ -15,7 +15,7 @@ Large UI changes are in the working tree, **uncommitted** (see `CHANGELOG.md` �
 - Full ordering backend: add/modify/remove, promotions, pickup/delivery/dine-in, address confirmation, deterministic totals, confirmation gate, persistence, per-session history, staff Basic Auth + status updates.
 - Frontend: Menu (categories + jump popup), Cart, Checkout, Orders, RoboCap chat overlay with splash, typing loader, skeleton cards, item cards, customization sheet, comparison cards, order summary card, post-order lock, AI-failure fallback with retry.
 - AI: native Gemini tool-calling loop (24 tools), pairing suggestion, quantity-clarification rule.
-- Voice: Sarvam streaming TTS (+ mute per message), STT with 2 s auto-send, Android repeat-word fix.
+- Voice: Sarvam streaming TTS (+ mute per message), STT (mic → stop → send, no auto-send as of D37), Android repeat-word fix.
 - Figma dark-theme port (phases 1–6) + many follow-up polish rounds; Menu-top RoboCap banner (2026-09-04); gradient CTA buttons (orange in chat, blue elsewhere); outlined sparkle icon; Figtree font; dots-only colored ambient background.
 - Bug fixes worth knowing: `closeChatWindow` received the click Event as `destinationTab` (blank page after closing chat) — fixed 2026-09-04 by wrapping handlers in `() => closeChatWindow()`.
 

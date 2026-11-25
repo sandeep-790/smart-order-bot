@@ -95,8 +95,33 @@ let chatInputPlaceholderIndex = 0;
 // The mic fills chatInput.value directly (not via a real keystroke), which
 // doesn't fire an "input" event — call this anywhere the value changes
 // programmatically so the overlay never sits on top of real text.
+// Declared early: updateComposerMode (below) needs it before the mic code runs.
+const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
+// Set by the mic code; submitting while listening aborts the session first.
+let abortVoice = null;
+const chatInputWave = document.getElementById("chatInputWave");
+const chatInputListening = document.getElementById("chatInputListening");
+
+// The single action button at the right of the composer: a mic when the box is
+// empty, a stop square while listening, an up-arrow send once there's text.
+// "Listening" is tracked as a class on the pill (set by the mic code below).
+function updateComposerMode() {
+  const listening = chatInputWrap.classList.contains("is-listening");
+  const hasText = chatInput.value.trim().length > 0;
+  let mode = "send";
+  if (listening) mode = "stop";
+  else if (!hasText && SpeechRecognitionApi) mode = "mic";
+  chatInputWrap.dataset.mode = mode;
+  sendButton.hidden = mode !== "send";
+  micButton.hidden = mode === "send" || !SpeechRecognitionApi;
+  chatInputWave.hidden = !listening;
+  chatInputListening.hidden = !listening || hasText;
+}
+
 function syncPlaceholderVisibility() {
-  chatInputPlaceholder.hidden = chatInput.value.length > 0;
+  const listening = chatInputWrap.classList.contains("is-listening");
+  chatInputPlaceholder.hidden = listening || chatInput.value.length > 0;
+  updateComposerMode();
 }
 
 setInterval(() => {
@@ -1036,35 +1061,64 @@ async function appendItemList(items) {
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-// Wraps a scrollable .chat-item-list with a fading, pulsing chevron hint on
-// its right edge whenever there's more content to scroll to — the
-// scrollbar itself is hidden (see .chat-item-list CSS), so without this
-// nothing signals the row is scrollable at all. Hides itself once the
-// customer has scrolled to the end.
+// Wraps a scrollable .chat-item-list with three non-clickable "there's more
+// to the right" cues (the scrollbar itself is hidden, and an arrow button
+// looked tappable, so none of them is a button):
+//   1. a soft fade on the right edge while more cards are off-screen,
+//   2. a slim progress bar under the row (thumb = visible share, moves as
+//      you scroll) that only exists when the row overflows,
+//   3. a one-time sideways "nudge" the first time the row scrolls into view.
 function attachScrollHint(list) {
   const wrap = document.createElement("div");
   wrap.className = "chat-item-list-wrap";
   wrap.appendChild(list);
 
-  const hint = document.createElement("div");
-  hint.className = "chat-item-list-scroll-hint";
-  hint.innerHTML =
-    '<span class="chat-item-list-scroll-chevron">' +
-    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-    '<path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
-    "</span>";
-  wrap.appendChild(hint);
+  const fade = document.createElement("div");
+  fade.className = "chat-item-list-scroll-hint";
+  fade.setAttribute("aria-hidden", "true");
+  wrap.appendChild(fade);
+
+  const bar = document.createElement("div");
+  bar.className = "chat-item-list-progress";
+  bar.setAttribute("aria-hidden", "true");
+  const thumb = document.createElement("i");
+  bar.appendChild(thumb);
+  wrap.appendChild(bar);
 
   function updateHint() {
     const hasOverflow = list.scrollWidth > list.clientWidth + 4;
     const atEnd = list.scrollLeft + list.clientWidth >= list.scrollWidth - 4;
-    hint.hidden = !hasOverflow || atEnd;
+    fade.hidden = !hasOverflow || atEnd;
+    bar.hidden = !hasOverflow;
+    if (hasOverflow) {
+      const total = list.scrollWidth;
+      thumb.style.width = `${(list.clientWidth / total) * 100}%`;
+      thumb.style.left = `${(list.scrollLeft / total) * 100}%`;
+    }
   }
   list.addEventListener("scroll", updateHint);
   updateHint();
   // Card photos loading in can grow scrollWidth after the initial layout
-  // pass — check again shortly after so the hint doesn't stay hidden.
+  // pass — check again shortly after so the cues don't stay hidden.
   setTimeout(updateHint, 300);
+
+  // One-time nudge: when at least 60% of the row is on screen and it really
+  // overflows, slide it ~44px and back so the motion itself says "swipe".
+  if ("IntersectionObserver" in window && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+        observer.disconnect();
+        if (list.scrollWidth <= list.clientWidth + 4 || list.scrollLeft > 0) return;
+        setTimeout(() => {
+          list.scrollTo({ left: 44, behavior: "smooth" });
+          setTimeout(() => list.scrollTo({ left: 0, behavior: "smooth" }), 650);
+        }, 500);
+      },
+      { root: chatArea, threshold: 0.6 }
+    );
+    observer.observe(wrap);
+  }
 
   return wrap;
 }
@@ -1601,8 +1655,7 @@ function lockChatInput(locked) {
   micButton.disabled = locked;
   chatInput.hidden = locked;
   chatInputWrap.hidden = locked;
-  sendButton.hidden = locked;
-  micButton.hidden = locked || !SpeechRecognitionApi;
+  if (!locked) updateComposerMode();
   orderLockedBanner.hidden = !locked;
   // Locked: the dock stops floating over the chat so its blur never covers
   // the order-placed card (see .chat-dock.is-locked in style.css).
@@ -1760,8 +1813,10 @@ chatForm.addEventListener("submit", (event) => {
   // Typing past a pending clarification chip (instead of tapping it) still
   // moves the conversation forward — that chip is now stale either way.
   disableStaleReplyOptions();
+  if (abortVoice) abortVoice();
   appendMessage("user", text);
   chatInput.value = "";
+  syncPlaceholderVisibility();
   sendChatMessage(text);
 });
 
@@ -1776,6 +1831,7 @@ chatInput.addEventListener("keydown", (event) => {
 startOverButton.addEventListener("click", async () => {
   lockChatInput(false);
   chatInput.value = "";
+  syncPlaceholderVisibility();
   // A fresh order shouldn't drag the previous order's entire conversation
   // into the AI's context on every future turn.
   chatHistory.length = 0;
@@ -1795,13 +1851,12 @@ document.getElementById("trackOrderButton").addEventListener("click", () => {
 
 // --- Speech-to-text (mic button) ------------------------------------------
 // Uses the browser's built-in Web Speech API — no server involved, no new
-// dependency. Only shown if the browser actually supports it. Shows the
-// live transcript in the input box as the customer speaks (interim
-// results). After 2s of no new speech, auto-stops and sends — a manual tap
-// to stop instead leaves the text in the box for review without sending,
-// since a deliberate stop means the customer wants to edit first.
-const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
-
+// dependency. Only shown if the browser actually supports it.
+// Flow (one button, see updateComposerMode): tap the mic → the input pill
+// goes into "listening" (glow, waveform, live transcript) and the button
+// becomes Stop → tap Stop → the words stay in the box as plain text and the
+// button becomes Send. Nothing is ever sent automatically: the customer
+// reviews/edits the transcript and presses Send themselves.
 if (SpeechRecognitionApi) {
   const recognition = new SpeechRecognitionApi();
   recognition.lang = "en-IN";
@@ -1816,31 +1871,26 @@ if (SpeechRecognitionApi) {
   const isAndroid = /Android/i.test(navigator.userAgent);
   recognition.continuous = !isAndroid;
   let listening = false;
-  // True only when the customer explicitly tapped the mic to stop — tells
-  // the "end" handler not to auto-restart an Android session that's
-  // supposed to actually be over.
+  // True once the customer tapped Stop — tells the "end" handler not to
+  // auto-restart an Android session that's supposed to actually be over.
   let manualStop = false;
-  let autoSendPending = false;
-  let silenceTimer = null;
   // Accumulates only text the engine has already finalized. Re-summing
-  // event.results[0..length) from scratch on every "result" event (the
-  // previous approach) is what caused words to repeat 2-3x: in continuous
-  // mode Chrome periodically re-segments the audio and can re-emit an
-  // already-finalized span as if it were new. Tracking our own running
-  // total and only appending genuinely-final segments once sidesteps that.
+  // event.results[0..length) from scratch on every "result" event is what
+  // caused words to repeat 2-3x: in continuous mode Chrome periodically
+  // re-segments the audio and can re-emit an already-finalized span as if
+  // it were new. Tracking our own running total and only appending
+  // genuinely-final segments once sidesteps that.
   let finalTranscript = "";
-  const SILENCE_AUTO_SEND_MS = 2000;
+  // Text already in the box when listening started, so dictation appends
+  // to what the customer typed instead of replacing it.
+  let baseText = "";
 
-  micButton.hidden = false;
-
-  function startSendCountdown() {
-    sendButton.classList.remove("counting-down");
-    void sendButton.offsetWidth; // force reflow so the CSS animation restarts from 0 each time
-    sendButton.classList.add("counting-down");
-  }
-
-  function cancelSendCountdown() {
-    sendButton.classList.remove("counting-down");
+  function setListeningUi(on) {
+    listening = on;
+    chatInputWrap.classList.toggle("is-listening", on);
+    micButton.classList.toggle("mic-listening", on);
+    micButton.setAttribute("aria-label", on ? "Stop listening" : "Speak your order");
+    syncPlaceholderVisibility();
   }
 
   recognition.addEventListener("result", (event) => {
@@ -1853,23 +1903,15 @@ if (SpeechRecognitionApi) {
         interimTranscript += segment;
       }
     }
-    chatInput.value = (finalTranscript + interimTranscript).trim();
+    chatInput.value = `${baseText} ${finalTranscript}${interimTranscript}`.trim();
     syncPlaceholderVisibility();
-
-    clearTimeout(silenceTimer);
-    startSendCountdown();
-    silenceTimer = setTimeout(() => {
-      autoSendPending = true;
-      recognition.stop();
-    }, SILENCE_AUTO_SEND_MS);
   });
 
   recognition.addEventListener("end", () => {
     // Android ends each session on its own short internal pause even with
-    // continuous off — restart immediately to keep listening through our
-    // own silence window, unless the customer stopped it themselves or the
-    // silence timer already decided to auto-send.
-    if (isAndroid && listening && !autoSendPending && !manualStop) {
+    // continuous off — restart immediately to keep listening until the
+    // customer taps Stop.
+    if (isAndroid && listening && !manualStop) {
       try {
         recognition.start();
         return;
@@ -1877,41 +1919,37 @@ if (SpeechRecognitionApi) {
         // Fall through and fully stop below.
       }
     }
-
-    listening = false;
-    micButton.classList.remove("mic-listening");
-    clearTimeout(silenceTimer);
-    cancelSendCountdown();
-
-    if (autoSendPending) {
-      autoSendPending = false;
-      if (chatInput.value.trim()) chatForm.requestSubmit();
-    }
-    // No .focus() here either — same "don't pop the keyboard uninvited" reasoning.
+    setListeningUi(false);
+    // No .focus() here — same "don't pop the keyboard uninvited" reasoning.
   });
 
   recognition.addEventListener("error", (event) => {
     // "no-speech"/"aborted" are routine on Android's short-session model
     // (e.g. the customer paused before speaking) — recoverable, so let the
-    // "end" event that always follows decide whether to restart instead of
-    // tearing down state here.
+    // "end" event that always follows decide whether to restart.
     if (isAndroid && (event.error === "no-speech" || event.error === "aborted")) {
       return;
     }
-    listening = false;
-    autoSendPending = false;
     manualStop = false;
-    clearTimeout(silenceTimer);
-    cancelSendCountdown();
-    micButton.classList.remove("mic-listening");
+    setListeningUi(false);
   });
+
+  abortVoice = () => {
+    if (!listening) return;
+    manualStop = true;
+    try {
+      recognition.abort();
+    } catch (err) {
+      // Nothing to abort.
+    }
+    setListeningUi(false);
+  };
 
   micButton.addEventListener("click", () => {
     if (listening) {
-      autoSendPending = false;
+      // Stop: the engine delivers its last result, then "end" — the text is
+      // left in the box and the button turns into Send.
       manualStop = true;
-      clearTimeout(silenceTimer);
-      cancelSendCountdown();
       recognition.stop();
       return;
     }
@@ -1922,18 +1960,19 @@ if (SpeechRecognitionApi) {
     // first, then guard start() so a throw doesn't leave the button stuck
     // showing "listening" while nothing is actually happening.
     chatInput.blur();
-    listening = true;
     manualStop = false;
     finalTranscript = "";
-    micButton.classList.add("mic-listening");
+    baseText = chatInput.value.trim();
+    setListeningUi(true);
     try {
       recognition.start();
     } catch (err) {
-      listening = false;
-      micButton.classList.remove("mic-listening");
+      setListeningUi(false);
     }
   });
 }
+
+updateComposerMode();
 
 // ---------------------------------------------------------------------
 // Guided ordering UI — real backend calls, shares state with SmartOrder.
@@ -2442,6 +2481,7 @@ function flashButton(button, text, isError) {
 
 const cartItems = document.getElementById("cartItems");
 const cartTotals = document.getElementById("cartTotals");
+const cartSubtitle = document.getElementById("cartSubtitle");
 const orderNotesInput = document.getElementById("orderNotesInput");
 const saveOrderNotesButton = document.getElementById("saveOrderNotesButton");
 const proceedToCheckoutButton = document.getElementById("proceedToCheckoutButton");
@@ -2469,6 +2509,7 @@ function renderCart() {
 
   if (!order || order.items.length === 0) {
     cartItems.innerHTML = '<p class="empty-state">Your cart is empty.</p>';
+    cartSubtitle.textContent = "Nothing here yet";
     cartTotals.hidden = true;
     cartCheckoutBar.hidden = true;
     return;
@@ -2478,25 +2519,42 @@ function renderCart() {
   cartCheckoutBarTotal.textContent = formatMoney(order.total);
   orderNotesInput.value = order.notes || "";
 
+  const totalQty = order.items.reduce((sum, i) => sum + i.quantity, 0);
+  cartSubtitle.textContent = `${totalQty} item${totalQty === 1 ? "" : "s"} · ${formatMoney(order.total)}`;
+
   cartItems.innerHTML = "";
   for (const item of order.items) {
     const row = document.createElement("div");
     row.className = "cart-item";
-    const customizations = item.options.length > 0 ? `, ${item.options.join(", ")}` : "";
-    const addOnNames = (item.addOns || []).map((a) => a.name);
-    const addOnNote = addOnNames.length > 0 ? `, ${addOnNames.join(", ")}` : "";
+    const menuItem = state.menu.find((m) => m.name === item.name);
+    const thumb = menuItem && menuItem.image ? iconSvg(menuItem.image) : "";
+    const pills = [item.size, ...item.options, ...(item.addOns || []).map((a) => a.name)]
+      .filter(Boolean)
+      .map((p) => `<span class="cart-pill">${escapeHtml(p)}</span>`)
+      .join("");
     row.innerHTML = `
-      <div class="cart-item-info">
-        <div class="cart-item-name">${item.name} (${item.size}${customizations}${addOnNote})</div>
-        <div class="cart-item-price">${formatMoney(item.unitPrice)} each</div>
+      <div class="cart-item-main">
+        <div class="cart-item-thumb">${thumb}</div>
+        <div class="cart-item-info">
+          <div class="cart-item-name">${escapeHtml(item.name)}</div>
+          <div class="cart-item-pills">${pills}</div>
+          <div class="cart-item-price">${formatMoney(item.unitPrice)} each</div>
+        </div>
+        <button type="button" class="remove-btn" data-action="remove" aria-label="Remove ${escapeHtml(item.name)}">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
-      <div class="cart-item-controls">
-        <button type="button" class="qty-btn" data-action="decrease">−</button>
-        <span class="qty-value">${item.quantity}</span>
-        <button type="button" class="qty-btn" data-action="increase">+</button>
-        <button type="button" class="remove-btn" data-action="remove">Remove</button>
+      <div class="cart-item-bottom">
+        <label class="cart-item-note-wrap">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-4-4L4 16v4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          <input type="text" class="cart-item-note" placeholder="Add a note for the kitchen" value="${item.notes ? escapeHtml(item.notes) : ""}" />
+        </label>
+        <div class="cart-item-controls">
+          <button type="button" class="qty-btn" data-action="decrease" aria-label="Decrease quantity">−</button>
+          <span class="qty-value">${item.quantity}</span>
+          <button type="button" class="qty-btn" data-action="increase" aria-label="Increase quantity">+</button>
+        </div>
       </div>
-      <input type="text" class="cart-item-note" placeholder="Add a note for this item..." value="${item.notes ? item.notes.replace(/"/g, "&quot;") : ""}" />
     `;
 
     row.querySelector('[data-action="increase"]').addEventListener("click", () =>
@@ -2512,12 +2570,18 @@ function renderCart() {
   }
 
   cartTotals.hidden = false;
-  const parts = [`Subtotal: ${formatMoney(order.subtotal)}`];
-  if (order.discount > 0) parts.push(`Discount: -${formatMoney(order.discount)}`);
-  parts.push(`Tax: ${formatMoney(order.tax)}`);
-  if (order.deliveryFee > 0) parts.push(`Delivery fee: ${formatMoney(order.deliveryFee)}`);
-  parts.push(`<strong>Total: ${formatMoney(order.total)}</strong>`);
-  cartTotals.innerHTML = parts.join("<br />");
+  const bill = [["Subtotal", formatMoney(order.subtotal), ""]];
+  if (order.discount > 0) bill.push(["Discount", `−${formatMoney(order.discount)}`, "is-discount"]);
+  bill.push(["Tax", formatMoney(order.tax), ""]);
+  if (order.deliveryFee > 0) bill.push(["Delivery fee", formatMoney(order.deliveryFee), ""]);
+  cartTotals.innerHTML = `
+    <div class="bill-title">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Bill details
+    </div>
+    ${bill.map(([label, value, cls]) => `<div class="bill-row ${cls}"><span>${label}</span><span>${value}</span></div>`).join("")}
+    <div class="bill-total"><span>Total</span><strong>${formatMoney(order.total)}</strong></div>
+  `;
 }
 
 async function changeItemQuantity(lineId, newQty) {
@@ -2580,7 +2644,8 @@ async function loadPromotions() {
       row.className = "promo-row";
       const applied = state.order && state.order.promotionId === promo.id;
       row.innerHTML = `
-        <div>
+        <span class="promo-badge" aria-hidden="true">%</span>
+        <div class="promo-text">
           <div class="promo-name">${promo.name}</div>
           <div class="promo-rule">${promo.rule}</div>
         </div>
@@ -2619,10 +2684,13 @@ async function loadRecommendations() {
     for (const item of picks) {
       const chip = document.createElement("div");
       chip.className = "recommendation-chip";
-      chip.innerHTML = `<span class="recommendation-icon">${iconSvg(item.image)}</span><span>${item.name}</span>`;
+      const startPrice = item.sizes && item.sizes.length > 0 ? Math.min(...item.sizes.map((z) => z.price)) : null;
+      chip.innerHTML = `<span class="recommendation-icon">${iconSvg(item.image)}</span><span class="recommendation-name">${escapeHtml(item.name)}</span>${
+        startPrice != null ? `<span class="recommendation-price">From ${formatMoney(startPrice)}</span>` : ""
+      }`;
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = "Add";
+      button.textContent = "+ Add";
       button.addEventListener("click", async () => {
         try {
           await apiSend("POST", "/api/order/items", { itemId: item.id });
