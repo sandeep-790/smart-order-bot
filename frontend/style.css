@@ -309,28 +309,55 @@ body {
   }
 }
 
-/* Header */
+/* Header — a layered card, not a flat bar: soft plum glow in the corner, a
+   faint dot texture (echoing the chat window's grid) and rounded bottom
+   corners with a lifted shadow, so the tab switcher below floats on the page. */
 .chat-header {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  gap: 14px;
+  padding: 18px 16px 20px;
+  background:
+    radial-gradient(130% 150% at 100% 0%, #f0d3e2 0%, #f0d3e200 58%),
+    linear-gradient(180deg, #ffffff 0%, #fbf5f8 100%);
+  border-radius: 0 0 26px 26px;
+  box-shadow: 0 14px 28px -18px rgba(65, 34, 52, 0.38), 0 1px 0 rgba(65, 34, 52, 0.05);
   flex-shrink: 0;
+  z-index: 2;
+}
+
+.chat-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(circle, #412234 1px, transparent 1.3px) 0 0 / 10px 10px;
+  opacity: 0.1;
+  -webkit-mask-image: linear-gradient(100deg, transparent 25%, #000 100%);
+  mask-image: linear-gradient(100deg, transparent 25%, #000 100%);
 }
 
 .chat-header-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(65, 34, 52, 0.28);
+  box-shadow: 0 0 0 3px #ffffffd9, 0 8px 18px rgba(65, 34, 52, 0.34);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20px;
   flex-shrink: 0;
+}
+
+.chat-header-avatar svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .chat-header-info {
@@ -340,33 +367,66 @@ body {
 
 .chat-header-info h1 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--text);
 }
 
+/* Tagline with a softly pulsing accent dot — a small "alive" cue. */
 .chat-header-info p {
-  margin: 2px 0 0;
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 5px 0 0;
+  font-size: 12.5px;
   color: var(--text-muted);
 }
 
+.chat-header-info p::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c0598a;
+  box-shadow: 0 0 0 0 #c0598a80;
+  animation: header-dot 2.2s ease-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes header-dot {
+  0%   { box-shadow: 0 0 0 0 #c0598a80; }
+  70%  { box-shadow: 0 0 0 7px #c0598a00; }
+  100% { box-shadow: 0 0 0 0 #c0598a00; }
+}
+
+/* "Powered by Sandy" as a glass pill (label stacked over the logo, centred). */
 .powered-by {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 3px;
   flex-shrink: 0;
+  padding: 6px 12px 7px;
+  border-radius: 14px;
+  background: #ffffffb3;
+  border: 1px solid #41223414;
+  box-shadow: 0 4px 12px -6px rgba(65, 34, 52, 0.25);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 .powered-by span {
   font-size: 8px;
+  font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.08em;
 }
 
 .powered-by img {
-  height: 22px;
+  height: 18px;
   width: auto;
   display: block;
 }
@@ -429,12 +489,38 @@ body {
   display: block;
 }
 
-/* Tabs */
+/* Tabs — a floating segmented control. The white "thumb" is the bar's
+   ::before and slides between the two segments (position follows whichever
+   button is .active). */
 .tab-bar {
+  position: relative;
   display: flex;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  margin: 14px 16px 6px;
+  padding: 4px;
+  border-radius: 18px;
+  background: #412234;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: inset 0 0 0 1px #4122341a;
   flex-shrink: 0;
+  isolation: isolate;
+}
+
+.tab-bar::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  z-index: -1;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 6px 16px -6px rgba(65, 34, 52, 0.45), 0 0 0 1px #4122340d;
+  transition: transform 0.38s cubic-bezier(0.3, 1.25, 0.4, 1);
+}
+
+.tab-bar:has(.tab-button[data-tab="orders"].active)::before {
+  transform: translateX(100%);
 }
 
 .tab-button {
@@ -442,21 +528,35 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 12px 8px;
+  gap: 7px;
+  padding: 11px 8px;
   border: none;
   background: none;
   color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
   position: relative;
+  transition: color 0.25s ease;
 }
 
 .tab-button.active {
   color: var(--accent);
-  border-bottom-color: var(--accent);
+}
+
+.tab-button .tab-icon svg {
+  transition: transform 0.35s cubic-bezier(0.3, 1.6, 0.4, 1);
+}
+
+.tab-button.active .tab-icon svg {
+  transform: scale(1.12) translateY(-1px);
+}
+
+.tab-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 14px;
 }
 
 .tab-icon {
@@ -507,51 +607,97 @@ body {
 }
 
 .panel-section {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
+  margin-top: 22px;
 }
 
 .panel-section-label {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-muted);
-  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  margin-bottom: 10px;
 }
 
-/* Pushed views (Cart, Checkout) — reuse .tab-panel show/hide, add a header. */
+/* Small accent tick before every section title. */
+.panel-section-label::before {
+  content: "";
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #c0598a, var(--accent));
+}
+
+.optional-tag {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #41223410;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Pushed views (Cart, Checkout) — reuse .tab-panel show/hide, add a header:
+   round icon back button + a title with a one-line subtitle, on the page
+   background (no bar, no divider). */
 .pushed-view-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  padding: 16px 16px 6px;
   flex-shrink: 0;
 }
 
-.pushed-view-header h2 {
+.pushed-view-title h2 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.pushed-view-title p {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
 }
 
 .back-button {
+  width: 42px;
+  height: 42px;
   border: none;
-  background: none;
+  border-radius: 14px;
+  background: #ffffff;
   color: var(--accent);
-  font-size: 14px;
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  padding: 4px 6px 4px 0;
+  flex-shrink: 0;
+  box-shadow: 0 6px 16px -8px rgba(65, 34, 52, 0.45), 0 0 0 1px #4122340f;
+  transition: transform 0.2s cubic-bezier(0.3, 1.5, 0.4, 1), box-shadow 0.2s ease;
+}
+
+.back-button:hover {
+  transform: translateX(-2px);
+}
+
+.back-button:active {
+  transform: scale(0.94);
 }
 
 /* Floating "View Cart" pill */
 .floating-cart-button {
   position: absolute;
   left: 50%;
-  bottom: 84px;
+  /* Vertically centred on the 46px categories button (bottom: 16px) — the
+     pill is 42px tall, so 16 + (46 - 42) / 2. */
+  bottom: 18px;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -2015,7 +2161,7 @@ body {
   position: absolute;
   inset: 0;
   left: 48px;
-  right: 14px;
+  right: 52px;
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -2045,58 +2191,25 @@ body {
   opacity: 0;
 }
 
+/* Composer action button — ONE button slot at the right end of the pill.
+   .chat-input-wrap[data-mode] decides which of mic / stop / send shows
+   (see updateComposerMode in app.js). */
 #sendButton,
 #micButton {
   position: relative;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
+  margin-right: 4px;
   border-radius: 50%;
   border: none;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: opacity 0.15s ease, background 0.15s ease;
-}
-
-/* Visible 2s countdown before a voice message auto-sends — the send icon
-   swaps for a bouncing 3-dot loader (same look as RoboCap's own typing
-   indicator) so the customer knows a send is about to happen on its own. */
-.send-icon {
-  display: block;
-}
-
-.send-dots {
-  display: none;
-  align-items: center;
-  gap: 3px;
-}
-
-.send-dots span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #fff;
-  animation: typing-bounce 1s infinite ease-in-out;
-}
-
-.send-dots span:nth-child(2) {
-  animation-delay: 0.15s;
-}
-
-.send-dots span:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-#sendButton.counting-down .send-icon {
-  display: none;
-}
-
-#sendButton.counting-down .send-dots {
-  display: inline-flex;
+  transition: opacity 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
 #sendButton:hover,
@@ -2104,27 +2217,129 @@ body {
   opacity: 0.9;
 }
 
-#sendButton:disabled {
+#sendButton:disabled,
+#micButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
+/* Mic: quiet outline until it's the thing to press. */
 #micButton {
-  background: var(--surface);
+  background: var(--surface-glass);
   color: var(--accent);
-  border: 1px solid var(--border);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
+#micButton .stop-icon { display: none; }
+#micButton.mic-listening .mic-icon { display: none; }
+#micButton.mic-listening .stop-icon { display: block; }
+
+/* Listening: the stop button is the loud one. */
 #micButton.mic-listening {
-  background: #a02020;
+  background: var(--accent-gradient);
   color: #fff;
-  border-color: #a02020;
-  animation: mic-pulse 1.2s infinite ease-in-out;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
+  animation: mic-ring 1.4s ease-out infinite;
 }
 
-@keyframes mic-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+@keyframes mic-ring {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  100% { box-shadow: 0 0 0 12px transparent; }
+}
+
+/* Only the button for the current mode is visible; the rest are removed from
+   layout so the action slot never shifts. */
+.chat-input-wrap [hidden] { display: none !important; }
+.chat-input-wrap[data-mode="mic"] #sendButton,
+.chat-input-wrap[data-mode="stop"] #sendButton,
+.chat-input-wrap[data-mode="send"] #micButton {
+  display: none;
+}
+
+/* A little pop when the mic turns into send. */
+.chat-input-wrap[data-mode="send"] #sendButton {
+  animation: composer-pop 0.22s ease-out;
+}
+
+@keyframes composer-pop {
+  0%   { transform: scale(0.7); }
+  100% { transform: scale(1); }
+}
+
+/* Listening state on the pill itself: glowing accent border, a live
+   waveform before the text, and a shimmering "Listening…" label until the
+   first words arrive (the transcript then fills the box in place). */
+.chat-input-wrap.is-listening {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent), 0 0 24px color-mix(in srgb, var(--accent) 30%, transparent);
+  animation: listen-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes listen-glow {
+  from { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent), 0 0 14px color-mix(in srgb, var(--accent) 18%, transparent); }
+  to   { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent), 0 0 28px color-mix(in srgb, var(--accent) 40%, transparent); }
+}
+
+.chat-input-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  margin-left: 2px;
+  flex-shrink: 0;
+}
+
+.chat-input-wave i {
+  display: block;
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent-gradient);
+  transform: scaleY(0.3);
+  animation: listen-bar 0.9s ease-in-out infinite;
+}
+
+.chat-input-wave i:nth-child(2) { animation-delay: -0.15s; }
+.chat-input-wave i:nth-child(3) { animation-delay: -0.3s; }
+.chat-input-wave i:nth-child(4) { animation-delay: -0.45s; }
+.chat-input-wave i:nth-child(5) { animation-delay: -0.6s; }
+
+@keyframes listen-bar {
+  0%, 100% { transform: scaleY(0.25); }
+  50%      { transform: scaleY(1); }
+}
+
+/* "Listening…" overlay, same position as the animated placeholder. */
+.chat-input-listening {
+  position: absolute;
+  left: 77px;
+  right: 52px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 16px;
+  color: transparent;
+  background: linear-gradient(90deg, var(--text-muted) 30%, #ffffff 50%, var(--text-muted) 70%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: listen-shimmer 1.6s linear infinite;
+}
+
+@keyframes listen-shimmer {
+  from { background-position: 120% 0; }
+  to   { background-position: -120% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-input-wrap.is-listening,
+  .chat-input-wave i,
+  .chat-input-listening,
+  #micButton.mic-listening {
+    animation: none;
+  }
+  .chat-input-wave i { transform: scaleY(0.7); }
+  .chat-input-listening { color: var(--text-muted); background: none; }
 }
 
 
@@ -2165,36 +2380,44 @@ body {
   position: absolute;
   top: 0;
   right: 0;
-  bottom: 2px;
-  width: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  background: linear-gradient(to right, transparent, var(--chat-bg) 65%);
+  /* Stops above the progress bar so the fade only covers the cards. */
+  bottom: 14px;
+  width: 40px;
+  background: linear-gradient(to right, transparent, color-mix(in srgb, var(--chat-bg) 92%, transparent) 90%);
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.chat-item-list-scroll-hint[hidden] {
+  display: block;
+  opacity: 0;
+}
+
+/* Scroll progress — a slim track whose thumb is the visible share of the
+   row; purely informational (no pointer events). */
+.chat-item-list-progress {
+  position: relative;
+  width: 64px;
+  height: 4px;
+  margin: 2px auto 12px;
+  border-radius: 999px;
+  background: #ffffff1c;
+  overflow: hidden;
   pointer-events: none;
 }
 
-.chat-item-list-scroll-chevron {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  animation: chat-item-list-scroll-hint-pulse 1.4s ease-in-out infinite;
+.chat-item-list-progress i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 14px;
+  border-radius: 999px;
+  background: var(--accent-gradient);
+  transition: left 0.1s linear;
 }
 
-@keyframes chat-item-list-scroll-hint-pulse {
-  0%, 100% {
-    transform: translateX(0);
-  }
-  50% {
-    transform: translateX(3px);
-  }
+.chat-item-list-wrap > .chat-item-list {
+  margin-bottom: 8px;
 }
 
 .chat-item-list .chat-compare-card {
@@ -3413,35 +3636,180 @@ body {
   margin-bottom: 4px;
 }
 
-/* Cart tab */
+/* Cart tab — each line is a card: photo, name, variant pills, price, a kitchen
+   note field and a stepper. */
 .cart-item {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 14px;
+  background: var(--surface);
+  border-radius: 20px;
+  box-shadow: 0 10px 24px -16px rgba(65, 34, 52, 0.45), 0 0 0 1px #4122340d;
   font-size: 14px;
 }
 
+.cart-item-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.cart-item-thumb {
+  width: 62px;
+  height: 62px;
+  border-radius: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #f1e6ec;
+}
+
+.cart-item-thumb:empty {
+  display: none;
+}
+
+.cart-item-thumb img,
+.cart-item-thumb svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .cart-item-info {
+  flex: 1;
   min-width: 0;
 }
 
 .cart-item-name {
+  font-size: 15.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.cart-item-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.cart-pill {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #4122340e;
+  color: var(--text-muted);
+  font-size: 11px;
   font-weight: 600;
 }
 
-.cart-item-note {
-  width: 100%;
+.cart-item-price {
   margin-top: 6px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
   font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cart-item-bottom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Kitchen note — a soft inline field with a pencil, not a bordered box. */
+.cart-item-note-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 38px;
+  border-radius: 12px;
+  background: #4122340a;
+  color: var(--text-muted);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cart-item-note-wrap:focus-within {
+  background: #ffffff;
+  box-shadow: 0 0 0 2px var(--accent);
+  color: var(--accent);
+}
+
+.cart-item-note {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.cart-item-note::placeholder {
+  color: var(--text-muted);
+}
+
+/* Stepper — one tinted pill (− n +), same family as the Menu stepper. */
+.cart-item-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--accent-gradient);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.qty-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: #ffffff1f;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.qty-btn:hover {
+  background: #ffffff38;
+}
+
+.qty-btn:active {
+  transform: scale(0.88);
+}
+
+.qty-value {
+  min-width: 26px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.remove-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 10px;
+  background: #a020200d;
+  color: #a02020;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.remove-btn:hover {
+  background: #a0202022;
 }
 
 .notes-row {
@@ -3451,88 +3819,135 @@ body {
 
 .notes-row input {
   flex: 1;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
+  min-width: 0;
+  padding: 0 14px;
+  height: 46px;
+  border-radius: 14px;
+  border: none;
+  outline: none;
   background: var(--surface);
+  box-shadow: 0 0 0 1px #41223414;
   color: var(--text);
   font-size: 14px;
+  transition: box-shadow 0.2s ease;
+}
+
+.notes-row input:focus {
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .notes-row button {
-  padding: 10px 16px;
+  padding: 0 20px;
+  height: 46px;
   border: none;
-  border-radius: 999px;
+  border-radius: 14px;
   background: var(--accent-gradient);
   color: #fff;
-  font-size: 13px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.cart-item-price {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.cart-item-controls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.qty-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
   font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
-.qty-value {
-  min-width: 16px;
-  text-align: center;
-  font-size: 13px;
-}
-
-.remove-btn {
-  margin-left: 6px;
-  border: none;
-  background: none;
-  color: #a02020;
-  font-size: 12px;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
+/* Bill details — a receipt card with a dashed tear line above the total. */
 .cart-totals {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
+  position: relative;
+  margin-top: 18px;
+  padding: 16px 16px 18px;
+  background: var(--surface);
+  border-radius: 20px;
+  box-shadow: 0 10px 24px -16px rgba(65, 34, 52, 0.45), 0 0 0 1px #4122340d;
   font-size: 14px;
-  line-height: 1.8;
 }
 
-.promo-row,
-.recommendation-chip {
+.bill-title {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px 12px;
-  margin-bottom: 8px;
+  gap: 8px;
+  margin-bottom: 12px;
   font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.bill-title svg {
+  color: var(--accent);
+}
+
+.bill-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.bill-row span:last-child {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.bill-row.is-discount span:last-child {
+  color: #2a8a4a;
+  font-weight: 700;
+}
+
+.bill-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 2px dashed #41223426;
+}
+
+.bill-total span {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.bill-total strong {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Promotions — ticket-style cards. */
+.promo-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(90deg, #f6e4ee, #ffffff 70%);
+  border-radius: 18px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  box-shadow: 0 0 0 1px #c0598a33;
+}
+
+.promo-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--accent-gradient);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.promo-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .promo-name {
-  font-weight: 600;
+  font-weight: 800;
 }
 
 .promo-rule {
@@ -3541,14 +3956,14 @@ body {
   margin-top: 2px;
 }
 
-.promo-row button,
-.recommendation-chip button {
-  padding: 6px 12px;
+.promo-row button {
+  padding: 8px 16px;
   border: none;
   border-radius: 999px;
   background: var(--accent-gradient);
   color: #fff;
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 700;
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -3558,30 +3973,86 @@ body {
   cursor: not-allowed;
 }
 
+/* You might also like — a swipeable row of mini cards. */
+#recommendationsList {
+  display: flex;
+  gap: 10px;
+  margin: 0 -16px;
+  padding: 4px 16px 14px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+#recommendationsList::-webkit-scrollbar {
+  display: none;
+}
+
 .recommendation-chip {
-  justify-content: flex-start;
+  position: relative;
+  flex: 0 0 138px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 8px 8px 10px;
+  background: var(--surface);
+  border-radius: 20px;
+  box-shadow: 0 10px 22px -16px rgba(65, 34, 52, 0.5), 0 0 0 1px #4122340d;
+  scroll-snap-align: start;
+  font-size: 13px;
 }
 
 .recommendation-icon {
-  flex-shrink: 0;
+  display: block;
   line-height: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 4px;
 }
 
 .recommendation-icon svg,
 .recommendation-icon img {
   display: block;
-  width: 40px;
-  height: 40px;
+  width: 100%;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 0;
 }
 
-.recommendation-chip span:nth-child(2) {
-  flex: 1;
-  font-weight: 500;
+.recommendation-name {
+  padding: 0 4px;
+  font-weight: 800;
+  font-size: 13.5px;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-#recommendationsList {
-  max-height: 260px;
-  overflow-y: auto;
+.recommendation-price {
+  padding: 0 4px 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.recommendation-chip button {
+  margin-top: auto;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 12px;
+  background: #4122340f;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.recommendation-chip button:hover {
+  background: var(--accent-gradient);
+  color: #fff;
 }
 
 /* Checkout tab */
@@ -3763,34 +4234,38 @@ body {
   box-shadow: none;
 }
 
-/* Sticky checkout bar at the bottom of the Cart view — always visible,
-   no scrolling needed to find the CTA. */
+/* Checkout dock — a raised sheet pinned to the bottom of the Cart view with
+   the total on the left and the CTA on the right. */
 .cart-checkout-bar {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 12px 16px;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
   background: var(--surface);
-  border-top: 1px solid var(--border);
+  border-radius: 26px 26px 0 0;
+  box-shadow: 0 -14px 30px -18px rgba(65, 34, 52, 0.45), 0 -1px 0 #4122340d;
   flex-shrink: 0;
 }
 
 .cart-checkout-bar-total {
   display: flex;
   flex-direction: column;
-  line-height: 1.25;
+  line-height: 1.2;
   flex-shrink: 0;
 }
 
 .cart-checkout-bar-total span {
-  font-size: 11px;
+  font-size: 10.5px;
+  font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.08em;
 }
 
 .cart-checkout-bar-total strong {
-  font-size: 18px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--text);
 }
 

@@ -40,21 +40,23 @@
     <nav class="tab-bar" id="tabBar">
       <button type="button" class="tab-button active" data-tab="menu">
         <span class="tab-icon">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M5 17.5a7 7 0 0 1 14 0H5Z" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-            <path d="M3.5 17.5h17M7 20.5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            <circle cx="12" cy="8.4" r="1.4" fill="currentColor"/>
-            <path d="M8.4 13.4a4 4 0 0 1 2.2-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".7"/>
+          <!-- Open menu book with a sparkle: duotone (soft fill + line). -->
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M3 6.2c2.9-.9 5.6-.7 9 1.3v12c-3.4-2-6.1-2.2-9-1.3V6.2Z" fill="currentColor" fill-opacity=".16" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M21 6.2c-2.9-.9-5.6-.7-9 1.3v12c3.4-2 6.1-2.2 9-1.3V6.2Z" fill="currentColor" fill-opacity=".16" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M5.6 10.3c1.5-.3 3-.1 4.1.6M5.6 13.6c1.5-.3 3-.1 4.1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M16.5 9.4l.75 1.75 1.75.75-1.75.75-.75 1.75-.75-1.75-1.75-.75 1.75-.75.75-1.75Z" fill="currentColor"/>
           </svg>
         </span>
         Menu
       </button>
       <button type="button" class="tab-button" data-tab="orders">
         <span class="tab-icon">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M5.5 8.5h13l-1 11.2a1.6 1.6 0 0 1-1.6 1.4H8.1a1.6 1.6 0 0 1-1.6-1.4L5.5 8.5Z" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-            <path d="M9 8.5V7a3 3 0 0 1 6 0v1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            <path d="M9.5 14.6l1.9 1.9 3.3-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Receipt with a tick and a torn edge: duotone (soft fill + line). -->
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M6 3h12v18l-2.4-1.6L13.2 21 12 20.2 10.8 21l-2.4-1.6L6 21V3Z" fill="currentColor" fill-opacity=".16" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M9.2 11.4l2 2 3.6-3.9" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9.5 7h5M9.5 16.2h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".75"/>
           </svg>
         </span>
         Orders
@@ -164,7 +166,11 @@
 
       <div class="chat-dock">
       <form class="chat-input-bar" id="chatForm">
-        <div class="chat-input-wrap">
+        <!-- One pill: cart (left) · text field · one action button (right) that is
+             a mic when the box is empty, a stop square while listening, and an
+             up-arrow send button once there is text (data-mode, set by
+             updateComposerMode in app.js). -->
+        <div class="chat-input-wrap" data-mode="mic">
           <button type="button" id="composerCartButton" class="chat-input-cart-button" aria-label="View cart">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <circle cx="9" cy="21" r="1.4" fill="currentColor"/><circle cx="18" cy="21" r="1.4" fill="currentColor"/>
@@ -172,6 +178,7 @@
             </svg>
             <span class="chat-input-cart-badge" id="composerCartBadge" hidden>0</span>
           </button>
+          <span class="chat-input-wave" id="chatInputWave" aria-hidden="true" hidden><i></i><i></i><i></i><i></i><i></i></span>
           <input
             type="text"
             id="chatInput"
@@ -179,24 +186,23 @@
             autocomplete="off"
           />
           <div class="chat-input-placeholder" aria-hidden="true"><span id="chatInputPlaceholderText">Ask RoboCap Anything...</span></div>
+          <div class="chat-input-listening" id="chatInputListening" aria-hidden="true" hidden>Listening…</div>
+          <button type="button" id="micButton" aria-label="Speak your order" hidden>
+            <svg class="mic-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="9" y="2" width="6" height="12" rx="3" stroke="currentColor" stroke-width="2" />
+              <path d="M5 11a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            <svg class="stop-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor" />
+            </svg>
+          </button>
+          <button type="submit" id="sendButton" aria-label="Send message">
+            <svg class="send-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 19V5M5.5 11.5L12 5l6.5 6.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
         </div>
-        <button type="button" id="micButton" aria-label="Speak your order" hidden>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <rect x="9" y="2" width="6" height="12" rx="3" stroke="currentColor" stroke-width="2" />
-            <path d="M5 11a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-            <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-            <line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          </svg>
-        </button>
-        <button type="submit" id="sendButton" aria-label="Send message">
-          <span class="send-dots" aria-hidden="true">
-            <span></span><span></span><span></span>
-          </span>
-          <svg class="send-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <line x1="22" y1="2" x2="11" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
-          </svg>
-        </button>
       </form>
       <p class="chat-ai-disclaimer">
         RoboCap is always learning. Powered by
@@ -275,8 +281,11 @@
     <!-- Cart: a pushed view (not a tab) reached via the floating button. -->
     <section class="tab-panel pushed-view" id="view-cart">
       <div class="pushed-view-header">
-        <button type="button" class="back-button" id="cartBackButton">← Back</button>
-        <h2>Your Cart</h2>
+        <button type="button" class="back-button" id="cartBackButton" aria-label="Back"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="pushed-view-title">
+          <h2>Your Cart</h2>
+          <p id="cartSubtitle">Review your order</p>
+        </div>
       </div>
       <div class="panel-scroll">
         <div id="cartItems">
@@ -286,7 +295,7 @@
         <div class="cart-totals" id="cartTotals" hidden></div>
 
         <div class="panel-section">
-          <div class="panel-section-label">Order note (optional)</div>
+          <div class="panel-section-label">Order note <span class="optional-tag">Optional</span></div>
           <div class="notes-row">
             <input type="text" id="orderNotesInput" placeholder="e.g. please pack separately" />
             <button type="button" id="saveOrderNotesButton">Save</button>
@@ -321,8 +330,11 @@
     <!-- Checkout: a pushed view (not a tab). -->
     <section class="tab-panel pushed-view" id="view-checkout">
       <div class="pushed-view-header">
-        <button type="button" class="back-button" id="checkoutBackButton">← Back</button>
-        <h2>Checkout</h2>
+        <button type="button" class="back-button" id="checkoutBackButton" aria-label="Back"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="pushed-view-title">
+          <h2>Checkout</h2>
+          <p>Almost there</p>
+        </div>
       </div>
       <div class="panel-scroll">
         <div class="panel-section">

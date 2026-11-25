@@ -41,6 +41,7 @@ Rows are ordered chronologically. Unknown rationale is stated, not invented.
 | D34 | 2026-11 | Chat landing = ~3.5 s "AI boot" splash, first open per page load only | Plain glow + text | Owner wanted a "special AI section" feel | Active | user request |
 | D35 | 2026-11 | Thinking stage replaces the dotted loader for user turns: message pinned to top, full-height loader, min 1.2 s + 0.52 s burst; welcome greeting keeps the old dots | Short dotted bubble | Owner request; adds ~0.5 s to every reply by design | Active | user request |
 | D36 | 2026-11-25 | App-wide typeface = **Bricolage Grotesque** (single `--font` variable) replacing Figtree/system fonts | Figtree/system felt generic ("what every AI tool picks") | Owner request; weights 400–800 from Google Fonts (needs network; system fonts are the fallback). Supersedes the Figtree part of D25 | Active (uncommitted) | user request |
+| D37 | 2026-11-25 | Single composer pill with one mic/stop/send action button; **voice transcript is never auto-sent** (supersedes the 2 s silence auto-send) | Separate mic + send buttons with 2 s countdown auto-send | Owner spec: tap mic → listening effect + Stop → transcript stays in box → Send. Real recording not testable in the preview pane (mic blocked) — verify on a device | Active (uncommitted) | user request |
 
 ## Rejected / dropped approaches (details in `09_…`)
 - Gemini context caching & explicit thinking budget (no/negative benefit).

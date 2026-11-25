@@ -90,7 +90,7 @@ total     = round2(subtotal − discount + tax + deliveryFee)
 - After a successful order: chat input/mic/send are removed, previous interactive items are disabled, "Order locked" banner with order id and "Track it"/"Start over".
 - AI failure UX: friendly message ("I'm not able to process the request. Please proceed with browsing menu…") with **Go to menu** and **Retry** buttons — never technical errors.
 - TTS speaks reply text normalized (`normalizeTextForSpeech`: "Idli (4 pcs)" → "Idli, 4 pieces"; "2x X" → "2 quantity of X"); order summary and confirmation use short scripted speech lines instead of full text.
-- Mic: auto-send 2 s after speech ends with a 3-dot loader on the Send button; Android uses non-continuous mode to avoid repeated words.
+- Mic: one action button (mic → stop while listening → up-arrow send once there is text); the transcript is never auto-sent (D37, supersedes the old 2 s auto-send); Android uses non-continuous mode to avoid repeated words.
 
 ## 12. Requirements status summary
 | Area | Status |

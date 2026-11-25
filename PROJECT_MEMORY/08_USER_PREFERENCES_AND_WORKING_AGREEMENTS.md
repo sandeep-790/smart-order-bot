@@ -26,7 +26,7 @@ Owner: Sandeep Kurapati (product owner + hands-on tester; communicates in terse 
 - Item cards: price + Add pinned to bottom; Add is outlined; veg indicator before the name only (not on the image); badges (Bestseller/Recommended/spicy) on the image.
 - Order summary card: no Type/Extras labels, no tax/total lines, no close button; "Change" reopens customization; "Add more" asks for 2 recs not in cart.
 - Special instructions prompt offers **only** "No special instructions" (#144).
-- Voice: Indian-English, humane, **instant**; read "Idli 4 pieces", "1 quantity of Medu Vada"; order summary/confirmation get short scripted speech; keyboard must **not** auto-open after a reply; mic auto-send after 2 s with a 3-dot loader on Send.
+- Voice: Indian-English, humane, **instant**; read "Idli 4 pieces", "1 quantity of Medu Vada"; order summary/confirmation get short scripted speech; keyboard must **not** auto-open after a reply; mic is one button that cycles mic → stop → send; the transcript is never auto-sent (owner spec 2026-11-25).
 - Disclaimer wording: "RoboCap is always learning. Powered by [Petpooja logo]" in the footer; small logo aligned to text (#116, #180). Petpooja logo SVG supplied by the user (white/red version).
 - Menu banner replaces the floater; content: RoboCap name + image, "Virtual Captain", "AI Assistant", AI-feeling background, quick questions (#163).
 - Chat opens/closes with a grow-from-origin animation anchored to the entry element.
