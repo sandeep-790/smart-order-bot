@@ -24,7 +24,7 @@
 10. Do you want tests/CI added (none exist)?
 11. Should the 52 tracked `.claude-flow/*` files be removed from git?
 12. Are the **menu images** licensed for production use?
-13. Cause of intermittent **Sarvam 502s** — key/quota or upstream?
+13. **Sarvam 502s — cause found (2026-11-25):** not intermittent. Sarvam answers **403 `invalid_api_key_error`** to every request, so the `SARVAM_API_KEY` in `.env` is invalid/expired/revoked (key length 35; speaker `Ritu`, model `bulbul:v3` are fine). `/api/tts` converts any upstream failure into a generic 502. **Fix = issue a new key in the Sarvam dashboard, put it in `.env` (and Render's env vars), restart, then verify with the curl in `promo-video/` notes / the chat's voice.** Owner action required; the same key was exposed in earlier transcripts, so rotation was already recommended.
 
 ## C. Unverified implementation assumptions in this folder
 - Android send-button fix works on a physical device.
