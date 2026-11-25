@@ -1,0 +1,8 @@
+{
+  "name": "robocap-promo-video",
+  "private": true,
+  "type": "module",
+  "description": "Builds the RoboCap product demo video (stage page + scripted recording + narration).",
+  "scripts": { "build": "node build.mjs" },
+  "dependencies": { "ffmpeg-static": "^5.2.0", "ffprobe-static": "^3.1.0", "playwright-core": "^1.50.0" }
+}
