@@ -148,7 +148,7 @@
   position: absolute;
   inset: 0;
   /* Overall brightness of orbs + scan beam (1 = full). */
-  opacity: 0.7;
+  opacity: 0.36;
   -webkit-mask-image: radial-gradient(circle, #fff 1.5px, transparent 1.5px);
   -webkit-mask-size: 5px 5px;
   mask-image: radial-gradient(circle, #fff 1.5px, transparent 1.5px);
@@ -226,7 +226,7 @@
 /* Rising motes — tiny glowing particles drifting up, fading in and out. */
 /* Overall brightness of the motes (1 = full). */
 .cb-motes {
-  opacity: 0.7;
+  opacity: 0.36;
 }
 
 .cb-motes b {
@@ -1018,7 +1018,8 @@ body {
 .chat-splash {
   position: absolute;
   inset: 0;
-  z-index: 5;
+  /* Above .chat-dock (z-index 5) so the composer never shows on the splash. */
+  z-index: 6;
   display: flex;
   flex-direction: column;
   align-items: center;
