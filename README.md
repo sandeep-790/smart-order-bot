@@ -49,7 +49,7 @@ order, and check out; staff track incoming orders on a small dashboard.
 ## Getting started (local development)
 
 1. Copy `.env.example` to `.env` (in the project root) and fill in your
-   values. `PORT` defaults to `3000` if omitted, but `STAFF_USERNAME` and
+   values. `PORT` defaults to `4000` if omitted, but `STAFF_USERNAME` and
    `STAFF_PASSWORD` are required — the staff dashboard won't work without
    them (the backend logs a warning on startup if they're missing).
 2. Install and run the backend:
@@ -58,8 +58,8 @@ order, and check out; staff track incoming orders on a small dashboard.
    npm install
    npm start
    ```
-3. Open `http://localhost:3000` for the customer app, or
-   `http://localhost:3000/staff.html` for the staff dashboard — the
+3. Open `http://localhost:4000` for the customer app, or
+   `http://localhost:4000/staff.html` for the staff dashboard — the
    backend serves both, so that's the only URL you need.
 
    (If you ever want to run the frontend from a separate static server

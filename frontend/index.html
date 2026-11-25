@@ -4,21 +4,27 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>South Indian Cafe</title>
-  <!-- Figtree: used only inside the RoboCap chat window (see #view-chat's
-       font-family in style.css) — Menu/Cart/Orders keep the system font. -->
+  <!-- Bricolage Grotesque: the app-wide typeface (--font in style.css). -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="chat-app">
     <header class="chat-header" id="mainHeader">
       <div class="chat-header-avatar">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
-          <path d="M17 9h2a2.5 2.5 0 0 1 0 5h-2" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-          <path d="M7 4c0 1-1 1-1 2M11 4c0 1-1 1-1 2" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+        <svg viewBox="0 0 40 40" width="40" height="40" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="South Indian Cafe">
+          <defs>
+            <linearGradient id="sicTile" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#7a3b5a"/><stop offset="1" stop-color="#2a1420"/>
+            </linearGradient>
+          </defs>
+          <rect width="40" height="40" rx="12" fill="url(#sicTile)"/>
+          <path d="M15 8.5c-1.7 1.6 1.7 2.8 0 4.7M20 6.8c-1.9 1.8 1.9 3.2 0 5.2M25 8.5c-1.7 1.6 1.7 2.8 0 4.7" fill="none" stroke="#f1b3d2" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M13 15.5h14l-1.3 8.2H14.3L13 15.5Z" fill="#f8e9f1"/>
+          <path d="M8.5 22.8h23l-1.7 5.6a3 3 0 0 1-2.9 2.1H13.1a3 3 0 0 1-2.9-2.1l-1.7-5.6Z" fill="#e59cc0"/>
+          <path d="M11 33h18" stroke="#f1b3d2" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>
         </svg>
       </div>
       <div class="chat-header-info">
@@ -27,28 +33,28 @@
       </div>
       <div class="powered-by">
         <span>Powered by</span>
-        <img src="assets/petpooja-logo.png" alt="Petpooja" onerror="this.closest('.powered-by').hidden = true" />
+        <img src="assets/sandy-logo.svg" alt="Sandy" onerror="this.closest('.powered-by').hidden = true" />
       </div>
     </header>
 
     <nav class="tab-bar" id="tabBar">
       <button type="button" class="tab-button active" data-tab="menu">
         <span class="tab-icon">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M6 2v8a2 2 0 0 0 2 2v10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M6 2v6M9 2v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <path d="M17 2c-1.7 0-3 1.8-3 4v4a2 2 0 0 0 2 2v10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M5 17.5a7 7 0 0 1 14 0H5Z" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M3.5 17.5h17M7 20.5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <circle cx="12" cy="8.4" r="1.4" fill="currentColor"/>
+            <path d="M8.4 13.4a4 4 0 0 1 2.2-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".7"/>
           </svg>
         </span>
         Menu
       </button>
       <button type="button" class="tab-button" data-tab="orders">
         <span class="tab-icon">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M6 2h12v19l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5V2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            <line x1="8.5" y1="7" x2="15.5" y2="7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-            <line x1="8.5" y1="11" x2="15.5" y2="11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-            <line x1="8.5" y1="15" x2="13" y2="15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M5.5 8.5h13l-1 11.2a1.6 1.6 0 0 1-1.6 1.4H8.1a1.6 1.6 0 0 1-1.6-1.4L5.5 8.5Z" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M9 8.5V7a3 3 0 0 1 6 0v1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M9.5 14.6l1.9 1.9 3.3-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </span>
         Orders
@@ -57,6 +63,27 @@
 
     <!-- RoboCap chat: a pushed view (not a tab) reached via the draggable floater. -->
     <section class="tab-panel pushed-view" id="view-chat">
+      <!-- Living AI background (see .chat-bg in style.css): light orbs and a
+           scan beam that only show through the dot grid, plus rising motes.
+           Decorative only — sits behind everything, never takes clicks. -->
+      <div class="chat-bg" aria-hidden="true">
+        <div class="cb-dots">
+          <i class="cb-orb cb-o1"></i>
+          <i class="cb-orb cb-o2"></i>
+          <i class="cb-orb cb-o3"></i>
+          <i class="cb-scan"></i>
+        </div>
+        <div class="cb-motes">
+          <b style="--x:7%;--d:19s;--s:-2s;--z:3px"></b>
+          <b style="--x:19%;--d:26s;--s:-11s;--z:2px"></b>
+          <b style="--x:31%;--d:22s;--s:-6s;--z:3px"></b>
+          <b style="--x:44%;--d:29s;--s:-17s;--z:2px"></b>
+          <b style="--x:57%;--d:21s;--s:-9s;--z:4px"></b>
+          <b style="--x:68%;--d:25s;--s:-14s;--z:2px"></b>
+          <b style="--x:79%;--d:18s;--s:-4s;--z:3px"></b>
+          <b style="--x:91%;--d:27s;--s:-20s;--z:2px"></b>
+        </div>
+      </div>
       <!-- No header bar — just a floating close button over the chat
            content, so the full window height is usable transcript space
            (same visual treatment the splash already used for its own
@@ -74,39 +101,44 @@
            button (not the header's, which is visually hidden underneath)
            is what stays reachable to bail out mid-splash. -->
       <div class="chat-splash" id="chatSplash" hidden>
-        <div class="chat-splash-mesh" aria-hidden="true"></div>
+        <div class="cs-aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="cs-stars" id="csStars" aria-hidden="true"></div>
+        <div class="cs-floor" aria-hidden="true"></div>
         <button type="button" id="chatSplashCloseButton" class="overlay-icon-button chat-splash-close" aria-label="Close">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <line x1="5" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
             <line x1="19" y1="5" x2="5" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
           </svg>
         </button>
-        <div class="chat-splash-content">
-          <p class="chat-splash-hey">Hey there!👋</p>
-          <p class="chat-splash-title">I'm RoboCap<br />Your Virtual Captain</p>
-          <p class="chat-splash-subtitle">Tell me what you're in the mood for and I'll help you find it.</p>
-          <button type="button" id="chatSplashSkipButton" class="chat-splash-skip-btn">Start chatting →</button>
-        </div>
-      </div>
 
-      <!-- Item customization sheet (see openItemCustomizeSheet in app.js) —
-           opened by tapping "Add" on any chat item card. Content is built
-           fresh into .item-sheet-body/-footer each time; this shell just
-           provides the backdrop + open/close animation, same pattern as
-           #chatSplash above. -->
-      <div class="item-sheet-backdrop" id="itemSheetBackdrop" hidden>
-        <div class="item-sheet">
-          <button type="button" id="itemSheetCloseButton" class="overlay-icon-button item-sheet-close" aria-label="Close">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <line x1="5" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-              <line x1="19" y1="5" x2="5" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-            </svg>
-          </button>
-          <div class="item-sheet-scroll">
-            <div class="item-sheet-header" id="itemSheetHeader"></div>
-            <div class="item-sheet-body" id="itemSheetBody"></div>
+        <div class="cs-stage">
+          <div class="cs-core" aria-hidden="true">
+            <span class="cs-halo"></span>
+            <span class="cs-ring cs-ring--a"></span>
+            <span class="cs-ring cs-ring--b"></span>
+            <span class="cs-ring cs-ring--c"></span>
+            <span class="cs-orbit"><i></i></span>
+            <span class="cs-orbit cs-orbit--2"><i></i></span>
+            <span class="cs-orb">
+              <svg viewBox="0 0 24 24" width="34" height="34" fill="none"><path d="M12 2c0 0 .8 6.5 3 8.5 2.2 2 7 1.5 7 1.5s-4.8-.5-7 1.5c-2.2 2-3 8.5-3 8.5s-.8-6.5-3-8.5C6.8 11.5 2 12 2 12s4.8.5 7-1.5C11.2 8.5 12 2 12 2Z" fill="currentColor"/></svg>
+            </span>
           </div>
-          <div class="item-sheet-footer" id="itemSheetFooter"></div>
+
+          <div class="cs-swap">
+            <ul class="cs-boot" aria-hidden="true">
+              <li style="--d: 0.5s"><span class="cs-check"><b class="cs-spin"></b><svg class="cs-tick" viewBox="0 0 24 24" width="12" height="12" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Waking up RoboCap</li>
+              <li style="--d: 1.1s"><span class="cs-check"><b class="cs-spin"></b><svg class="cs-tick" viewBox="0 0 24 24" width="12" height="12" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Loading today's menu</li>
+              <li style="--d: 1.7s"><span class="cs-check"><b class="cs-spin"></b><svg class="cs-tick" viewBox="0 0 24 24" width="12" height="12" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Tuning your recommendations</li>
+            </ul>
+
+            <div class="chat-splash-content">
+              <p class="chat-splash-hey">Hey there! 👋</p>
+              <p class="chat-splash-title">I'm RoboCap</p>
+              <p class="chat-splash-role"><i></i>Your Virtual Captain</p>
+              <p class="chat-splash-subtitle">Tell me what you're in the mood for and I'll help you find it.</p>
+              <button type="button" id="chatSplashSkipButton" class="chat-splash-skip-btn"><span>Start chatting</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -130,6 +162,7 @@
         </div>
       </div>
 
+      <div class="chat-dock">
       <form class="chat-input-bar" id="chatForm">
         <div class="chat-input-wrap">
           <button type="button" id="composerCartButton" class="chat-input-cart-button" aria-label="View cart">
@@ -167,8 +200,9 @@
       </form>
       <p class="chat-ai-disclaimer">
         RoboCap is always learning. Powered by
-        <img src="assets/petpooja-logo-white.svg" alt="Petpooja" class="chat-ai-disclaimer-logo" onerror="this.hidden = true" />
+        <img src="assets/sandy-logo-white.svg" alt="Sandy" class="chat-ai-disclaimer-logo" onerror="this.hidden = true" />
       </p>
+      </div>
     </section>
 
     <!-- Menu tab: browse real menu.json data, add items to the real order. -->
@@ -180,21 +214,40 @@
              Stays put across renderMenu() rebuilds since categories render
              into #menuCategoriesContainer, a separate sibling below. -->
         <div class="robocap-banner" id="robocapBanner" role="button" tabindex="0" aria-label="Open RoboCap chat — your virtual captain">
-          <div class="robocap-banner-mesh" aria-hidden="true"></div>
-          <div class="robocap-banner-top">
-            <span class="robocap-banner-mark">
-              <svg viewBox="0 0 40 40" width="40" height="40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <circle cx="20" cy="20" r="20" fill="#f36a20" />
-                <path d="M14 20a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0Zm3-3.2c1.6-1.7 4-1.7 6 0M23 23.2c-1.6 1.7-4 1.7-6 0" stroke="#fff" stroke-width="1.6" stroke-linecap="round" fill="none" />
-              </svg>
-            </span>
-            <div class="robocap-banner-title">
-              <span class="robocap-banner-name">RoboCap<span class="robocap-banner-badge">✦ AI Assistant</span></span>
-              <span class="robocap-banner-role">Your Virtual Captain</span>
+          <div class="rcb-aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="rcb-grid" aria-hidden="true"></div>
+
+          <div class="rcb-head">
+            <div class="rcb-orb" aria-hidden="true">
+              <span class="rcb-ring"></span><span class="rcb-ring rcb-ring--2"></span>
+              <span class="rcb-core"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" aria-hidden="true"><path d="M12 2c0 0 .8 6.5 3 8.5 2.2 2 7 1.5 7 1.5s-4.8-.5-7 1.5c-2.2 2-3 8.5-3 8.5s-.8-6.5-3-8.5C6.8 11.5 2 12 2 12s4.8.5 7-1.5C11.2 8.5 12 2 12 2Z" fill="currentColor"/></svg></span>
+              <span class="rcb-online"></span>
             </div>
+            <div class="rcb-title">
+              <div class="rcb-name">RoboCap <span class="rcb-live"><i></i>LIVE</span></div>
+              <div class="rcb-role">Your Virtual Captain</div>
+            </div>
+            <span class="rcb-go" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
           </div>
-          <p class="robocap-banner-tagline">Ask me anything about the menu, or let me help you order.</p>
-          <div class="robocap-banner-quick" id="robocapBannerQuick"></div>
+
+          <h2 class="rcb-headline">Hungry? <span>Just ask me.</span></h2>
+
+          <div class="rcb-ask" aria-hidden="true">
+            <span class="rcb-ask-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M12 2c0 0 .8 6.5 3 8.5 2.2 2 7 1.5 7 1.5s-4.8-.5-7 1.5c-2.2 2-3 8.5-3 8.5s-.8-6.5-3-8.5C6.8 11.5 2 12 2 12s4.8.5 7-1.5C11.2 8.5 12 2 12 2Z" fill="currentColor"/></svg></span>
+            <span class="rcb-ask-text" id="rcbAskText">Ask RoboCap anything</span><span class="rcb-caret"></span>
+            <span class="rcb-mic">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="2"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </span>
+          </div>
+
+          <div class="rcb-feats" aria-hidden="true">
+            <span><svg viewBox="0 0 24 24" width="12" height="12" fill="none"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Voice replies</span>
+            <span><svg viewBox="0 0 24 24" width="12" height="12" fill="none"><path d="M12 3l2.4 5 5.6.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.6-.8L12 3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Smart picks</span>
+            <span><svg viewBox="0 0 24 24" width="12" height="12" fill="none"><path d="M5 12l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Order in chat</span>
+          </div>
+
         </div>
 
         <div id="menuCategoriesContainer">
@@ -335,8 +388,26 @@
       </svg>
       View Cart <span class="cart-count" id="floatingCartCount">0</span>
     </button>
+
+    <!-- Item customization sheet (see openItemCustomizeSheet in app.js). Lives at the app root, not inside #view-chat,
+         so both the chat item cards and the Menu tab can open it. Content is built fresh into .item-sheet-body/-footer. -->
+    <div class="item-sheet-backdrop" id="itemSheetBackdrop" hidden>
+      <div class="item-sheet">
+        <button type="button" id="itemSheetCloseButton" class="overlay-icon-button item-sheet-close" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <line x1="5" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <line x1="19" y1="5" x2="5" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+        <div class="item-sheet-scroll">
+          <div class="item-sheet-header" id="itemSheetHeader"></div>
+          <div class="item-sheet-body" id="itemSheetBody"></div>
+        </div>
+        <div class="item-sheet-footer" id="itemSheetFooter"></div>
+      </div>
+    </div>
   </div>
 
-  <script src="app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
