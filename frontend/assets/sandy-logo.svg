@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 92 28" width="92" height="28" role="img" aria-label="Sandy">
+  <circle cx="12" cy="14" r="8" fill="#412234"/>
+  <path d="M8.2 14.3l2.7 2.7 5-5.6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="26" y="20.5" font-family="'Figtree','Segoe UI',Helvetica,Arial,sans-serif" font-size="19" font-weight="800" letter-spacing="-0.3" fill="#412234">Sandy</text>
+</svg>

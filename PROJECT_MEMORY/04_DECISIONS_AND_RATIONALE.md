@@ -1,0 +1,51 @@
+# 04 — Decisions & Rationale
+
+Dates come from git/PR timestamps or the recovered transcript (2026-08-16 → 2026-10-16). "Source" cites where the decision is evidenced.
+Rows are ordered chronologically. Unknown rationale is stated, not invented.
+
+| # | Date | Decision | Context / alternatives | Rationale & trade-offs | Status | Source |
+|---|---|---|---|---|---|---|
+| D1 | 2026-08-16 | Minimal, beginner-friendly, low-cost stack; **no database** | Original brief | Keep infra tiny; JSON files + in-memory state | Active (outgrown but kept) | `CLAUDE.md`, user msg #1–#6 |
+| D2 | 2026-08-16 | **AI must not hallucinate; all menu/price data from JSON** | Prompt-only vs. code-enforced | Prompt ground rules **plus** tools that validate against menu data | Active | user #12, #50; `prompts/system-prompt.md` |
+| D3 | 2026-08-16 | **Deterministic pricing**, model never calculates | LLM arithmetic rejected | Correctness/trust; fixed 8% tax, ₹40 delivery | Active | user #23; `recalculateTotal` |
+| D4 | 2026-08-16 | **Explicit confirmation whitelist** before saving | Fuzzy intent detection | Ambiguous replies must never confirm; model's "sounds like yes" is re-verified server-side | Active | user #25; `isExplicitConfirmation` |
+| D5 | 2026-08-16 | Add **HTTP Basic Auth** for staff (fails closed) | Sessions/DB users | Simplest adequate protection for one location; requires HTTPS; user said "as you recommend" | Active | user #33; `requireStaffAuth` |
+| D6 | 2026-08-16 | **Serve frontend from the backend** (single origin, "Option A") | B: separate static host + hardcoded `API_BASE` | One Render service, no CORS, relative `API_BASE`. Bug caught: `new URL()` needs a base → `window.location.origin` | Active | assistant diagnosis 2026-08-16 (Recovered); PR #2 |
+| D7 | 2026-08-16 | First real AI: **Gemini free tier via OpenAI-compatible endpoint**, generic `AI_API_*` env vars | Grok (unconfirmed free tier), Groq, OpenRouter | User wanted a free key; Gemini = most reliable free/no card. Generic vars to allow provider swaps | **Superseded by D14** | Recovered transcript |
+| D8 | 2026-08-16 | Rename bot Capi → **RoboCap**; welcome line "My name is RoboCap! Your virtual Captain…" | — | User preference | Active | user #54 |
+| D9 | 2026-08-17 | TTS via **Sarvam AI Bulbul** (server proxy), replacing browser `speechSynthesis` | Browser TTS "sounds like a system" | More human Indian-English voice; key kept server-side | Active | user #65–#66 |
+| D10 | 2026-08-17 | TTS served as **streaming GET** consumed by `<audio src>` | blob-fetch then play | Playback starts as bytes arrive (latency) | Active | `app.js` comment; user #70, #125 |
+| D11 | 2026-08-17 | Item results render **in the chat window as cards** (not in quick-reply bar or text) | quick-reply chips | User spec: bigger images, badges, Add button | Active (layout iterated many times) | user #63, #78, #135 |
+| D12 | 2026-08-17 | "Ask quantity when recommended quantity > 1" → ground rule 8 | AI silently adding 2 | Observed bug (items added with qty 2) | Active | user #75; system prompt rule 8 |
+| D13 | 2026-08-18 | Only **two tabs** (Menu, Orders); Cart/Checkout are pushed views; RoboCap opens as a full overlay window | 3–4 tabs earlier | User redesign; later floater replaced by banner (D24) | Active | user #92–#94 |
+| D14 | 2026-08-19 | **Native Gemini `generateContent`** for chat (dedicated branch `feature/gemini-native-live-api`) | OpenAI-compat shim; Gemini **Live (WebSocket)** API | User wanted `GOOGLE_API_KEY/LIVE_MODEL/LIVE_VOICE`. Live-only models 404 on `generateContent`; use `gemini-flash-lite-latest`. Gemini rejects a `function` role → results sent as `user` turn | Active | user #118; assistant 2026-08-19 |
+| D15 | 2026-08-19 | **Roll TTS back to Sarvam** (Gemini TTS tried and verified working) | Gemini TTS voices (30, no Indian-labeled voices; adapts to text language) | User chose Sarvam keys/models; `LIVE_VOICE` left in `.env` unused | Active | user #121–#122 |
+| D16 | 2026-08-19 | Perf: cut `SKELETON_MIN_MS` 1500→300 ms; **memoize** `buildSystemContent()` | Context caching; `thinkingBudget` tuning | Measured: caching = no wall-clock gain; low thinkingBudget = slower. Dominant cause was the artificial 1.5 s skeleton wait. Remaining latency = ~0.85–1.0 s per Gemini call × tool round-trips (structural) | Active | user #126; assistant diagnosis (Recovered) |
+| D17 | 2026-08-18 | Chat reskin from `RoboCap Standalone.html` (bakery design system): keep **own brand colors**, add multi-color "flavor" chips, carousel, sticky cart bar | Adopt bakery palette | User constraint "no functional flow changes" | Superseded by D18 | plan file `~/.claude/plans/cozy-watching-walrus.md` (outside repo) |
+| D18 | 2026-09-03 | **Port Figma "Chatbot" dark design** into the chat window only; **no light theme**, tokens scoped to `#view-chat` | Restyle whole app | User: "do not keep the light theme option"; Menu/Cart/Orders stay light/blue; backend untouched | Active | user #128–#133 |
+| D19 | 2026-09-03 | Don't run local-server checks without asking | — | Explicit user instruction (#134). Later turns did test in browser (system policy: verify UI) and user criticized a missed test (#179). Treat as: **ask once / confirm preference**, but always verify before claiming done | Active (ambiguous) | user #134, #179 |
+| D20 | 2026-09-04 | Order summary card: **no tax/total lines, no "Type"/"Extras" labels**; "Change" opens customization sheet in edit mode; "Add more" requests 2 recs excluding cart items | — | User spec | Active | user #138, #143, #144 |
+| D21 | 2026-09-04 | Size selection stays as **radio rows**; reply-chip "primary" restyled to **outlined orange** | Filled size pills (rejected: "You did it wrong") | Visual consistency with outlined Add buttons | Active | user #146 |
+| D22 | 2026-09-04 | Chat background: aurora blobs + dots → iterated to **colored dots (mask) on flat black** | White dots + blobs; animated `background-position` (bug: muddy blob) | Animate only `filter: hue-rotate/brightness`; use `mask-image` so color lives only in dots; many opacity/density iterations | Active | user #147–#175; `style.css` |
+| D23 | 2026-09-04 | Replace "Recommend something/What's special today" chip copy → "Recommends", "Today's special" | — | User copy | Active | user #157 |
+| D24 | 2026-09-04 | **Replace floater with a Menu-top RoboCap banner** (name, Virtual Captain, AI Assistant, AI-feeling background, quick questions) | Draggable bubble | User request; entry only on Menu tab (Orders tab no longer has an entry — literal reading of "menu screen top") | Active | user #163 |
+| D25 | 2026-09-08 | Bot/user bubbles **pure black**, bot bubble **borderless and full width**, explicit **Figtree** | Bordered 75%-width bubbles | User spec | Active (uncommitted) | user #165, #183, #184 |
+| D26 | 2026-09-08 | RoboCap name icon = **outlined SVG sparkle** (not "✦" glyph) | Unicode glyph | User: "only outlined, not filled" | Active | user #177 |
+| D27 | 2026-09-08 | Shared **`--accent-gradient`** for all primary CTA buttons; redeclared in `#view-chat` | Flat accent | User reference image. Root cause of first-attempt bug: custom properties resolve `var()` at the declaring element, so a `:root`-only declaration baked in blue | Active | user #178–#179 |
+| D28 | 2026-09-08 | Android: `viewport-fit=cover` + safe-area padding on composer; Petpooja footer logo 9px→7px | — | Send button clipped on Android (photo evidence, root cause Inferred) | Active — real-device confirmation **Unverified** | user #166 |
+| D29 | 2026-09-11 | Default port **3000 → 4000** (`.env`, `.env.example`, `server.js`, README) | Another port | User asked for "another port"; 3000 was occupied (EADDRINUSE seen earlier). 4000 chosen by assistant | Active (uncommitted) | user #185 |
+| D30 | 2026-09-04 | Merge PRs with `gh pr merge --merge` when user says "merge it"; create PRs via `gh` (GitHub UI failed: "must be a collaborator") | — | Repo has a single collaborator (owner); UI error likely a different logged-in account (Inferred) | Active | user #154–#156 |
+| D31 | 2026-11 | Brand colour **#412234 (plum)**; in the dark chat use lightened tints (`#c0598a`, `#e59cc0`) | Orange/blue; plum on near-black is invisible | Owner picked #412234; fills use it on light screens, tint used where contrast needs it | Active (uncommitted) | user request 2026-11-24 |
+| D32 | 2026-11 | "Powered by" = **Sandy** wordmark (placeholder SVG) replacing Petpooja everywhere in the UI | Petpooja logo | Owner request; no logo file supplied, so a wordmark was drawn | Active — replace with the real asset | user request |
+| D33 | 2026-11 | Menu items use a Zomato-style card; ADD → bottom sheet (customisable) or direct add; ADD becomes a quantity stepper | Inline expanding controls | Owner request; sheet moved to app root with its own dark tokens | Active | user request |
+| D34 | 2026-11 | Chat landing = ~3.5 s "AI boot" splash, first open per page load only | Plain glow + text | Owner wanted a "special AI section" feel | Active | user request |
+| D35 | 2026-11 | Thinking stage replaces the dotted loader for user turns: message pinned to top, full-height loader, min 1.2 s + 0.52 s burst; welcome greeting keeps the old dots | Short dotted bubble | Owner request; adds ~0.5 s to every reply by design | Active | user request |
+| D36 | 2026-11-25 | App-wide typeface = **Bricolage Grotesque** (single `--font` variable) replacing Figtree/system fonts | Figtree/system felt generic ("what every AI tool picks") | Owner request; weights 400–800 from Google Fonts (needs network; system fonts are the fallback). Supersedes the Figtree part of D25 | Active (uncommitted) | user request |
+
+## Rejected / dropped approaches (details in `09_…`)
+- Gemini context caching & explicit thinking budget (no/negative benefit).
+- Animating `background-position` on multi-layer gradients (rendered wrong).
+- Filled size pills; light theme for chat; multi-option special-instruction chips; sticky cart bar (removed in favor of composer cart icon + badge).
+
+## Decisions pending (need the owner)
+See `12_OPEN_QUESTIONS_AND_MISSING_CONTEXT.md`: production deploy target/env, secret rotation, whether to add a DB, timezone policy for promotions.

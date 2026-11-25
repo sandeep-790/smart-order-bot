@@ -9,7 +9,7 @@
 // Relative — the backend serves this file itself (see backend/server.js,
 // express.static), so API calls are always same-origin. If you ever run the
 // frontend from a separate static server again, hardcode the backend's URL
-// here instead (e.g. "http://localhost:3000").
+// here instead (e.g. "http://localhost:4000").
 const API_BASE = "";
 const SESSION_STORAGE_KEY = "cafebotSessionId";
 
@@ -18,21 +18,18 @@ const SESSION_STORAGE_KEY = "cafebotSessionId";
 // lower-signal/overlapping ones: "full meal", "chef's picks" — redundant
 // with "Recommends" — and the ₹500 price filter, since ₹200
 // already covers the common budget question).
-// Order matters: flex-wrap packs greedily in this exact array order (fills
-// the current row, wraps only when the next chip doesn't fit — never
-// backfills an earlier row), so this is a measured pairing (real rendered
-// chip widths, bin-packed), not a random list — chosen to land exactly on
-// 4 two-chip rows at a 375px mobile viewport with the container's real
-// right-aligned layout (see .chat-reply-options--welcome).
+// Order matters: chips fill the 2-column grid row by row in this order.
 const WELCOME_QUICK_REPLIES = [
+  // Laid out row by row in a 2-column grid of equal-width chips, so each row
+  // is a related pair: discovery / popular / diet / taste + budget.
   "👨‍🍳 Recommends",
-  "🥗 Veg options",
   "🔥 Today's special",
-  "🌶️ spicy dishes",
   "⭐ Show bestsellers",
-  "💰 items under ₹200",
+  "💰 Items under ₹200",
+  "🥗 Veg options",
   "🍗 Non-veg options",
-  "👥 meal for two",
+  "🌶️ Spicy dishes",
+  "👥 Meal for two",
 ];
 
 // Small inline icon set for menu item thumbnails — resolved from the
@@ -224,7 +221,7 @@ function sleep(ms) {
 // Every AI reply pauses on the typing loader for at least this long (see
 // sendChatMessage) so a fast response still feels like a considered answer
 // instead of flashing the indicator for a few ms.
-const MIN_TYPING_MS = 900;
+const MIN_TYPING_MS = 1200;
 // Item-card results (see appendItemList/appendComparisonCards) show a
 // shimmering skeleton in their place for at least this long before the
 // real cards swap in — same idea, applied to "fetching results" rather
@@ -323,9 +320,174 @@ function showTypingIndicator() {
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
+// --- "Thinking stage" shown while RoboCap works on a customer's message ------
+// Instead of a small dotted bubble, the customer's message scrolls to the top
+// of the chat and a full-height stage fills the space below it: their own
+// words get absorbed into a glowing core, status lines roll, a soundwave
+// pulses and a ghost answer takes shape. Always visible for >= MIN_TYPING_MS.
+const DEFAULT_THINKING_STEPS = ["Reading your message", "Searching the menu", "Matching your taste", "Composing a reply"];
+
+// Status lines that reflect what was actually asked, so the wait reads as
+// RoboCap working on *this* request (first two matches win, in order).
+const THINKING_HINTS = [
+  [/non[-\s]?veg|chicken|mutton|fish|egg|prawn/i, "Checking the non-veg kitchen"],
+  [/(?<!non[-\s]?)\bveg(etarian|an)?\b/i, "Filtering vegetarian dishes"],
+  [/spic(y|e)|\bhot\b|chil+i|fiery/i, "Measuring the heat level"],
+  [/bestsell|popular|favou?rite|most ordered/i, "Finding what everyone loves"],
+  [/special|chef/i, "Asking the chef"],
+  [/under|below|₹|rs\.?\s?\d|budget|cheap|price|cost/i, "Comparing prices"],
+  [/compare|\bvs\b|versus|difference/i, "Putting both dishes side by side"],
+  [/two|meal|combo|family|complete/i, "Building the perfect combo"],
+  [/coffee|tea|chai|juice|lassi|drink|beverage|milk/i, "Brewing some options"],
+  [/dessert|sweet|halwa|payasam|ladoo|jamun/i, "Checking the sweet counter"],
+  [/dosa|idli|vada|upma|tiffin|breakfast/i, "Warming up the tiffin station"],
+  [/pickup|pick up|delivery|deliver|dine/i, "Setting up your fulfilment"],
+  [/cart|checkout|place|confirm|order|add|remove|change/i, "Updating your order"],
+  [/recommend|suggest|something|surprise/i, "Matching your taste"],
+];
+
+function thinkingStepsFor(userText) {
+  const matched = [];
+  for (const [pattern, label] of THINKING_HINTS) {
+    if (pattern.test(userText || "") && !matched.includes(label)) matched.push(label);
+    if (matched.length === 2) break;
+  }
+  if (matched.length === 0) return DEFAULT_THINKING_STEPS;
+  return ["Reading your message", ...matched, "Composing a reply"];
+}
+
+
+// opts.steps overrides the status lines; opts.standalone = true when there is
+// no customer message to pin (e.g. after tapping Add on a card) — the stage
+// then sits at the bottom of the transcript at a compact height.
+function showThinkingPanel(userText, opts = {}) {
+  removeTypingIndicator();
+  const steps = opts.steps || thinkingStepsFor(userText);
+  const row = document.createElement("div");
+  row.className = "message-row bot ai-think-row";
+  row.id = "typingIndicator";
+
+  // Up to five of the customer's own words, orbiting in to be "absorbed".
+  const words = (userText || "")
+    .replace(/[^\p{L}\p{N}₹'\s-]/gu, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 3)
+    .slice(0, 5)
+    .map((w) => (w.length > 12 ? `${w.slice(0, 11)}…` : w));
+  if (words.length === 0) words.push("your", "request");
+  const tokens = words
+    .map((w, i) => {
+      const angle = (i / words.length) * Math.PI * 2 + Math.random() * 0.6 - 0.3;
+      const x = Math.round(Math.cos(angle) * 118);
+      const y = Math.round(Math.sin(angle) * 62);
+      return `<i style="--x:${x}px;--y:${y}px;--d:${(i * 0.38).toFixed(2)}s">${escapeHtml(w)}</i>`;
+    })
+    .join("");
+
+  row.innerHTML = `
+    <div class="ai-think" role="status" aria-label="RoboCap is thinking">
+      <div class="ai-think-field" aria-hidden="true">
+        <span class="ai-think-glow"></span>
+        <div class="ai-think-tokens">${tokens}</div>
+        <div class="ai-think-core">
+          <span class="ai-think-ring ai-think-ring--a"></span>
+          <span class="ai-think-ring ai-think-ring--b"></span>
+          <span class="ai-think-orb"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"><path d="M12 2c0 0 .8 6.5 3 8.5 2.2 2 7 1.5 7 1.5s-4.8-.5-7 1.5c-2.2 2-3 8.5-3 8.5s-.8-6.5-3-8.5C6.8 11.5 2 12 2 12s4.8.5 7-1.5C11.2 8.5 12 2 12 2Z" fill="currentColor"/></svg></span>
+        </div>
+      </div>
+      <div class="ai-think-status"><span class="ai-think-label">${steps[0]}</span><span class="ai-think-dots"><i></i><i></i><i></i></span></div>
+      <div class="ai-think-wave" aria-hidden="true">${"<i></i>".repeat(17)}</div>
+      <div class="ai-think-ghost" aria-hidden="true"><b></b><b></b><b></b></div>
+    </div>`;
+  chatArea.appendChild(row);
+
+  // Cycle the status line while we wait (loops if the AI takes a while).
+  const label = row.querySelector(".ai-think-label");
+  let step = 0;
+  row._timer = setInterval(() => {
+    step = (step + 1) % steps.length;
+    label.textContent = steps[step];
+    label.classList.remove("is-swap");
+    void label.offsetWidth;
+    label.classList.add("is-swap");
+  }, 760);
+
+  // Give the stage the rest of the window and pin the customer's message to
+  // the top, so the loader owns the whole visible chat area.
+  const userRows = chatArea.querySelectorAll(".message-row.user");
+  const userRow = opts.standalone ? null : userRows[userRows.length - 1];
+  const topClearance = 54; // matches .chat-area's top padding (clears the close button)
+  const cs = getComputedStyle(chatArea);
+  const used = (userRow ? userRow.offsetHeight : 0) + topClearance + parseFloat(cs.paddingBottom) + 10;
+  const fullHeight = Math.max(220, chatArea.clientHeight - used);
+  row.style.setProperty("--think-h", `${opts.standalone ? Math.min(280, fullHeight) : fullHeight}px`);
+  if (userRow) {
+    const delta = userRow.getBoundingClientRect().top - chatArea.getBoundingClientRect().top + chatArea.scrollTop;
+    chatArea.scrollTo({ top: Math.max(0, delta - topClearance), behavior: "smooth" });
+  } else {
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+}
+
+// The core bursts into particles as the reply lands, then the stage clears.
+// Skipped (instant clear) for users who prefer reduced motion.
+const THINK_BURST_MS = 520;
+
+function burstThinkingPanel() {
+  const el = document.getElementById("typingIndicator");
+  if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    removeTypingIndicator();
+    return Promise.resolve();
+  }
+  if (el._timer) clearInterval(el._timer);
+  el.querySelector(".ai-think").classList.add("is-burst");
+  let html = '<span class="ai-think-shock"></span>';
+  const count = 20;
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2 + Math.random() * 0.35;
+    const dist = 70 + Math.random() * 100;
+    html += `<i style="--bx:${Math.round(Math.cos(angle) * dist)}px;--by:${Math.round(Math.sin(angle) * dist * 0.85)}px;--bs:${(0.6 + Math.random() * 1).toFixed(2)}"></i>`;
+  }
+  const burst = document.createElement("div");
+  burst.className = "ai-think-burst";
+  burst.innerHTML = html;
+  el.querySelector(".ai-think-core").appendChild(burst);
+  return sleep(THINK_BURST_MS).then(removeTypingIndicator);
+}
+
 function removeTypingIndicator() {
   const el = document.getElementById("typingIndicator");
-  if (el) el.remove();
+  if (el) {
+    if (el._timer) clearInterval(el._timer);
+    el.remove();
+  }
+}
+
+// Skeleton bubble shown right before ANY bot text lands: shimmering lines
+// shaped like the message that's about to appear (line count follows the
+// text's length), so the reply never pops in out of nowhere. Always call
+// through `await botSkeleton(text)` before appendMessage("bot", text).
+const BOT_SKELETON_MS = 650;
+function botSkeleton(text, ms = BOT_SKELETON_MS) {
+  const lineCount = Math.min(3, Math.max(1, Math.ceil(String(text || "").length / 40)));
+  const row = document.createElement("div");
+  row.className = "message-row bot bot-skeleton-row";
+  const label = document.createElement("span");
+  label.className = "bot-name-label";
+  label.textContent = "✦ RoboCap";
+  row.appendChild(label);
+  const bubble = document.createElement("div");
+  bubble.className = "bubble bot-skeleton";
+  bubble.setAttribute("aria-hidden", "true");
+  for (let i = 0; i < lineCount; i++) {
+    const line = document.createElement("i");
+    line.style.width = i === lineCount - 1 && lineCount > 1 ? "55%" : "100%";
+    bubble.appendChild(line);
+  }
+  row.appendChild(bubble);
+  chatArea.appendChild(row);
+  chatArea.scrollTop = chatArea.scrollHeight;
+  return sleep(ms).then(() => row.remove());
 }
 
 // displayText lets the user bubble read differently from the actual
@@ -343,8 +505,10 @@ function sendQuickReply(value, displayText) {
 // surfaces the underlying technical error (see sendChatMessage's catch),
 // just a plain-language apology plus a way forward: retry the exact same
 // message, or give up on chat and browse the menu directly.
-function appendChatError(retryText) {
-  appendMessage("bot", "I'm not able to process that right now. Please feel free to browse the menu, or try again.");
+async function appendChatError(retryText) {
+  const errorText = "I'm not able to process that right now. Please feel free to browse the menu, or try again.";
+  await botSkeleton(errorText);
+  appendMessage("bot", errorText);
 
   const wrap = document.createElement("div");
   wrap.className = "chat-reply-options";
@@ -1061,6 +1225,23 @@ async function confirmChatItemAdd(item, payload, wrap, resetToIdle) {
       '<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
       "<span>Added</span></span>";
     updateCartCount();
+    // Not instant: RoboCap visibly "works" on the follow-up (the item's name
+    // is absorbed into the core, then it bursts into the reply) so the
+    // customer sees something is happening in the chat, not a sudden pop-in.
+    const addStartedAt = Date.now();
+    chatInput.disabled = true;
+    sendButton.disabled = true;
+    showThinkingPanel(item.label, {
+      standalone: true,
+      steps: ["Adding to your cart", "Finding what pairs well", "Composing a reply"],
+    });
+    const addElapsed = Date.now() - addStartedAt;
+    if (addElapsed < MIN_TYPING_MS) await sleep(MIN_TYPING_MS - addElapsed);
+    await burstThinkingPanel();
+    if (orderLockedBanner.hidden) {
+      chatInput.disabled = false;
+      sendButton.disabled = false;
+    }
     // On the customer's first item this session, the backend attaches 1-2
     // pairing suggestions as item cards — pitch them by name so the message
     // reads like RoboCap actively suggesting a pair, not a generic
@@ -1072,6 +1253,7 @@ async function confirmChatItemAdd(item, payload, wrap, resetToIdle) {
             .map((p) => `**${p.label}**`)
             .join(" or ")} — want to add one?`
         : `Added **${item.label}** to your cart. Would you like anything else, or are you ready to proceed with fulfillment?`;
+    await botSkeleton(summary);
     appendMessage("bot", summary);
     chatHistory.push({ role: "assistant", content: summary });
     if (pairs.length > 0) {
@@ -1309,7 +1491,7 @@ async function openItemCustomizeSheet(chatItem, cardWrap, resetCardToIdle, editC
 
   function renderFooter() {
     const totalPrice = unitPrice() * quantity;
-    const buttonLabel = editContext ? "Save changes" : "Add";
+    const buttonLabel = editContext && !editContext.onAdd ? "Save changes" : "Add";
     itemSheetFooter.innerHTML = `
       <div class="item-sheet-qty">
         <button type="button" class="item-sheet-qty-btn" data-action="minus" aria-label="Decrease quantity">−</button>
@@ -1348,7 +1530,10 @@ async function openItemCustomizeSheet(chatItem, cardWrap, resetCardToIdle, editC
         addOns: [...selectedAddOns],
       };
       closeItemSheet();
-      if (editContext) {
+      if (editContext && editContext.onAdd) {
+        // Opened from the Menu tab: plain POST, no chat transcript.
+        await editContext.onAdd(payload);
+      } else if (editContext) {
         await apiSend("PATCH", `/api/order/items/${editContext.lineId}`, payload);
         await editContext.onSaved();
       } else {
@@ -1419,6 +1604,10 @@ function lockChatInput(locked) {
   sendButton.hidden = locked;
   micButton.hidden = locked || !SpeechRecognitionApi;
   orderLockedBanner.hidden = !locked;
+  // Locked: the dock stops floating over the chat so its blur never covers
+  // the order-placed card (see .chat-dock.is-locked in style.css).
+  const chatDock = document.querySelector(".chat-dock");
+  if (chatDock) chatDock.classList.toggle("is-locked", locked);
 }
 
 const orderLockedSubtitle = document.getElementById("orderLockedSubtitle");
@@ -1472,7 +1661,7 @@ async function sendChatMessage(text) {
   chatInput.disabled = true;
   sendButton.disabled = true;
   const typingStartedAt = Date.now();
-  showTypingIndicator();
+  showThinkingPanel(text);
 
   // The order this turn might confirm is still state.order right now — the
   // backend resets it to empty the instant it's confirmed (so the next
@@ -1507,7 +1696,8 @@ async function sendChatMessage(text) {
     // which reads as broken rather than "RoboCap thought about it".
     const typingElapsed = Date.now() - typingStartedAt;
     if (typingElapsed < MIN_TYPING_MS) await sleep(MIN_TYPING_MS - typingElapsed);
-    removeTypingIndicator();
+    await burstThinkingPanel();
+    await botSkeleton(displayText);
     appendMessage("bot", displayText, { speakText, speechPreloaded: true });
 
     // Final pre-checkout review — the order itself renders as a card here
@@ -1583,14 +1773,16 @@ chatInput.addEventListener("keydown", (event) => {
   }
 });
 
-startOverButton.addEventListener("click", () => {
+startOverButton.addEventListener("click", async () => {
   lockChatInput(false);
   chatInput.value = "";
   // A fresh order shouldn't drag the previous order's entire conversation
   // into the AI's context on every future turn.
   chatHistory.length = 0;
   checkoutStarted = false;
-  appendMessage("bot", "Ready when you are — what would you like today?");
+  const readyText = "Ready when you are — what would you like today?";
+  await botSkeleton(readyText);
+  appendMessage("bot", readyText);
   appendReplyOptions(WELCOME_QUICK_REPLIES, { skipIcon: true });
 });
 
@@ -1828,12 +2020,11 @@ let chatWelcomeShown = false;
 function showChatWelcome() {
   if (chatWelcomeShown) return;
   chatWelcomeShown = true;
-  showTypingIndicator();
-  setTimeout(() => {
-    removeTypingIndicator();
-    appendMessage("bot", "Vanakkam! My name is **RoboCap**! Your virtual Captain. How can I help you today?");
+  const welcomeText = "Vanakkam! My name is **RoboCap**! Your virtual Captain. How can I help you today?";
+  botSkeleton(welcomeText, 1100).then(() => {
+    appendMessage("bot", welcomeText);
     appendReplyOptions(WELCOME_QUICK_REPLIES, { skipIcon: true });
-  }, 1100);
+  });
 }
 
 // First-open-only splash (see .chat-splash in style.css) — an animated
@@ -1849,8 +2040,25 @@ let chatSplashPlayed = false;
 let chatSplashTimer = null;
 const CHAT_SPLASH_MS = 10000;
 
+// Sprinkles a few dozen tiny stars behind the splash (random position/size/
+// timing, CSS does the twinkle) — built once, on the first splash.
+function seedSplashStars() {
+  const field = document.getElementById("csStars");
+  if (!field || field.childElementCount > 0) return;
+  for (let i = 0; i < 34; i++) {
+    const star = document.createElement("i");
+    const size = 1 + Math.random() * 2.2;
+    star.style.cssText =
+      `left:${(Math.random() * 100).toFixed(1)}%;top:${(Math.random() * 100).toFixed(1)}%;` +
+      `width:${size.toFixed(1)}px;height:${size.toFixed(1)}px;` +
+      `--t:${(3 + Math.random() * 4).toFixed(1)}s;--dl:${(Math.random() * 4).toFixed(1)}s;--o:${(0.4 + Math.random() * 0.6).toFixed(2)}`;
+    field.appendChild(star);
+  }
+}
+
 function playChatSplash(onDone) {
   chatSplashPlayed = true;
+  seedSplashStars();
   chatSplash.hidden = false;
   // Force layout so the .active class below actually transitions in
   // instead of the browser coalescing hidden->active into one paint.
@@ -1934,7 +2142,6 @@ floatingCartButton.addEventListener("click", () => {
 });
 
 const robocapBanner = document.getElementById("robocapBanner");
-const robocapBannerQuick = document.getElementById("robocapBannerQuick");
 const viewChatEl = document.getElementById("view-chat");
 
 // Anchors the chat window's grow-in animation (see #view-chat.active in
@@ -1969,24 +2176,48 @@ function closeChatWindow(destinationTab = "menu") {
   viewChatEl.addEventListener("animationend", onAnimationEnd);
 }
 
-// A subset of the welcome quick-replies, reused as tappable "quick
-// questions" on the banner — tapping one opens the chat and immediately
-// sends that message, instead of just opening to a blank conversation.
-const BANNER_QUICK_QUESTIONS = ["👨‍🍳 Recommends", "🔥 Today's special", "⭐ Show bestsellers", "🥗 Veg options"];
-
 function initRobocapBanner() {
-  for (const label of BANNER_QUICK_QUESTIONS) {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "robocap-banner-quick-chip";
-    chip.textContent = label;
-    chip.addEventListener("click", (event) => {
-      event.stopPropagation();
-      openChatFromBanner();
-      const text = label.replace(/^\p{Extended_Pictographic}\s*/u, "").trim();
-      sendChatMessage(text);
-    });
-    robocapBannerQuick.appendChild(chip);
+  // The banner's fake "ask" bar types example prompts, so it reads as a live
+  // input. Purely decorative — tapping anywhere on the banner opens the chat.
+  const askText = document.getElementById("rcbAskText");
+  const askPrompts = [
+    "What's good for breakfast?",
+    "Recommend something spicy",
+    "Compare masala dosa and idli",
+    "Add 2 filter coffee to my order",
+    "Show me today's specials",
+  ];
+  if (askText) {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      let i = 0;
+      askText.textContent = askPrompts[0];
+      setInterval(() => {
+        i = (i + 1) % askPrompts.length;
+        askText.textContent = askPrompts[i];
+      }, 2600);
+    } else {
+      let promptIndex = 0;
+      let charCount = 0;
+      let erasing = false;
+      const tick = () => {
+        const full = askPrompts[promptIndex];
+        let delay = erasing ? 22 : 48;
+        if (!document.hidden) {
+          charCount += erasing ? -1 : 1;
+          askText.textContent = full.slice(0, charCount);
+          if (!erasing && charCount === full.length) {
+            erasing = true;
+            delay = 1500;
+          } else if (erasing && charCount === 0) {
+            erasing = false;
+            promptIndex = (promptIndex + 1) % askPrompts.length;
+            delay = 350;
+          }
+        }
+        setTimeout(tick, delay);
+      };
+      tick();
+    }
   }
 
   robocapBanner.addEventListener("click", () => openChatFromBanner());
@@ -2014,6 +2245,7 @@ function updateCartCount() {
   // fully into view above it instead of being covered.
   chatArea.classList.toggle("chat-area--fab-padding", !floatingCartButton.hidden);
   updateComposerCartBadge(count);
+  refreshMenuCardCounts();
 }
 
 const composerCartBadge = document.getElementById("composerCartBadge");
@@ -2097,115 +2329,103 @@ categoriesFloatButton.addEventListener("click", () => {
 function buildMenuItemCard(item) {
   const card = document.createElement("div");
   card.className = "menu-item-card";
+  card.dataset.itemId = item.id;
 
-  const priceRange =
-    item.sizes.length === 1
-      ? formatMoney(item.sizes[0].price)
-      : `${formatMoney(Math.min(...item.sizes.map((s) => s.price)))}–${formatMoney(Math.max(...item.sizes.map((s) => s.price)))}`;
+  const minPrice = Math.min(...item.sizes.map((s) => s.price));
+  const priceText = item.sizes.length > 1 ? `From ${formatMoney(minPrice)}` : formatMoney(item.sizes[0].price);
+  const isVeg = !(item.dietary && item.dietary.includes("non-vegetarian"));
+  const tags = [
+    item.bestseller ? '<span class="menu-item-tag menu-item-tag--best">★ Bestseller</span>' : "",
+    item.chefRecommended ? "<span class=\"menu-item-tag\">Chef's pick</span>" : "",
+    item.spicy ? '<span class="menu-item-tag menu-item-tag--spicy">Spicy</span>' : "",
+  ].join("");
+  const customizable =
+    item.sizes.length > 1 || item.options.length > 0 || (item.addOnGroups || []).length > 0;
 
   const header = document.createElement("div");
   header.className = "menu-item-top";
   header.innerHTML = `
-    <span class="menu-item-icon">${iconSvg(item.image)}</span>
     <div class="menu-item-main">
-      <div class="menu-item-header">
-        <span class="menu-item-name">${item.name}</span>
-        <span class="menu-item-price">${priceRange}</span>
-      </div>
+      <div class="menu-item-badges">${dietaryIcon(isVeg)}${tags}</div>
+      <div class="menu-item-name">${item.name}</div>
+      <div class="menu-item-price">${priceText}</div>
       <p class="menu-item-description">${item.description}</p>
-      ${!item.available ? '<span class="menu-item-unavailable">Sold out</span>' : ""}
+    </div>
+    <div class="menu-item-media${item.available ? "" : " menu-item-media--soldout"}">
+      <div class="menu-item-icon">${iconSvg(item.image)}</div>
+      ${
+        item.available
+          ? `<div class="menu-item-add"></div>${customizable ? '<span class="menu-item-custom-note">customisable</span>' : ""}`
+          : '<span class="menu-item-unavailable">Sold out</span>'
+      }
     </div>
   `;
   card.appendChild(header);
-
   if (!item.available) return card;
 
-  const controls = document.createElement("div");
-  controls.className = "menu-item-controls";
+  const addWrap = header.querySelector(".menu-item-add");
 
-  let sizeSelect;
-  if (item.sizes.length > 1) {
-    sizeSelect = document.createElement("select");
-    sizeSelect.className = "menu-item-size";
-    for (const size of item.sizes) {
-      const option = document.createElement("option");
-      option.value = size.name;
-      option.textContent = `${size.name} — ${formatMoney(size.price)}`;
-      sizeSelect.appendChild(option);
-    }
-    controls.appendChild(sizeSelect);
-  }
+  // Total of this item across every cart line (a customisable item can sit
+  // in the cart several times with different choices).
+  const cartLines = () => ((state.order && state.order.items) || []).filter((l) => l.itemId === item.id);
 
-  let optionCheckboxes = [];
-  if (item.options.length > 0) {
-    const optionsWrap = document.createElement("div");
-    optionsWrap.className = "menu-item-options";
-    for (const optionName of item.options) {
-      const label = document.createElement("label");
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.value = optionName;
-      optionCheckboxes.push(checkbox);
-      label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(` ${optionName}`));
-      optionsWrap.appendChild(label);
-    }
-    controls.appendChild(optionsWrap);
-  }
+  // ADD while empty, then a − n + stepper that keeps the running count.
+  card.renderAddControl = () => {
+    const count = cartLines().reduce((sum, l) => sum + l.quantity, 0);
+    addWrap.innerHTML =
+      count === 0
+        ? '<button type="button" class="menu-item-add-fab" data-action="add">ADD</button>'
+        : '<div class="menu-item-stepper"><button type="button" data-action="minus" aria-label="Remove one">−</button>' +
+          `<span class="menu-item-stepper-count">${count}</span>` +
+          '<button type="button" data-action="plus" aria-label="Add one more">+</button></div>';
+  };
 
-  // Add-on groups: mandatory ones are visually flagged; all are checkboxes
-  // client-side (the backend enforces min/max and will ask again if a
-  // required group isn't satisfied).
-  let addOnCheckboxes = [];
-  for (const group of item.addOnGroups || []) {
-    const groupWrap = document.createElement("div");
-    groupWrap.className = "menu-item-addon-group";
-    const label = document.createElement("div");
-    label.className = "menu-item-addon-group-label";
-    label.textContent = `${group.name}${group.required ? " (required)" : " (optional)"}`;
-    groupWrap.appendChild(label);
+  const addToCart = async (payload) => {
+    await apiSend("POST", "/api/order/items", { itemId: item.id, ...payload });
+    updateCartCount();
+  };
 
-    for (const opt of group.options) {
-      const optLabel = document.createElement("label");
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.value = opt.name;
-      addOnCheckboxes.push(checkbox);
-      optLabel.appendChild(checkbox);
-      optLabel.appendChild(document.createTextNode(` ${opt.name}${opt.priceDelta > 0 ? ` (+${formatMoney(opt.priceDelta)})` : ""}`));
-      groupWrap.appendChild(optLabel);
-    }
-    controls.appendChild(groupWrap);
-  }
-
-  const addButton = document.createElement("button");
-  addButton.type = "button";
-  addButton.textContent = "Add to order";
-  addButton.addEventListener("click", async () => {
-    addButton.disabled = true;
+  addWrap.addEventListener("click", async (event) => {
+    const action = event.target.closest("button")?.dataset.action;
+    if (!action) return;
+    addWrap.classList.add("is-busy");
     try {
-      const data = await apiSend("POST", "/api/order/items", {
-        itemId: item.id,
-        size: sizeSelect ? sizeSelect.value : undefined,
-        options: optionCheckboxes.filter((c) => c.checked).map((c) => c.value),
-        addOns: addOnCheckboxes.filter((c) => c.checked).map((c) => c.value),
-      });
-      if (data.needsClarification) {
-        flashButton(addButton, "Choose add-ons first", true);
+      if (action === "minus") {
+        const lines = cartLines();
+        if (lines.length > 0) {
+          await apiSend("DELETE", `/api/order/items/${lines[lines.length - 1].lineId}`, { quantity: 1 });
+          updateCartCount();
+        }
+      } else if (customizable) {
+        // Size / options / add-ons are picked in the bottom sheet, not inline.
+        await openItemCustomizeSheet(
+          { itemId: item.id, label: item.name, price: item.sizes[0].price, image: item.image, description: item.description, dietary: item.dietary },
+          null,
+          null,
+          { onAdd: addToCart }
+        );
       } else {
-        updateCartCount();
-        flashButton(addButton, "Added!");
+        await addToCart({});
       }
     } catch (err) {
-      flashButton(addButton, err.message, true);
+      const first = addWrap.querySelector("button");
+      if (first) flashButton(first, err.message, true);
     } finally {
-      addButton.disabled = false;
+      addWrap.classList.remove("is-busy");
     }
   });
-  controls.appendChild(addButton);
 
-  card.appendChild(controls);
+  card.renderAddControl();
   return card;
+}
+
+// Re-renders every Menu card's ADD/stepper from the live cart — called from
+// updateCartCount, which already runs after every cart change (Menu, Cart,
+// Checkout, or the chat).
+function refreshMenuCardCounts() {
+  document.querySelectorAll(".menu-item-card").forEach((card) => {
+    if (card.renderAddControl) card.renderAddControl();
+  });
 }
 
 function flashButton(button, text, isError) {
